@@ -37,47 +37,45 @@ function App() {
     localStorage.setItem("muted", String(muted));
   }, [muted]);
 
-  const connect = useCallback((nextRole, nextToken = token) => {
-    socketRef.current?.close();
-    setSocketStatus("connecting");
-    setError("");
-    const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${protocol}://${location.host}/ws`);
-    socketRef.current = socket;
+  const connect = useCallback(
+    (nextRole, nextToken = token) => {
+      socketRef.current?.close();
+      setSocketStatus("connecting");
+      setError("");
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const socket = new WebSocket(`${protocol}://${location.host}/ws`);
+      socketRef.current = socket;
 
-    socket.addEventListener("open", () => {
-      setSocketStatus("connected");
-      socket.send(
-        JSON.stringify({
-          type: "join",
-          role: nextRole,
-          token: nextToken,
-          nickname,
-        }),
-      );
-    });
+      socket.addEventListener("open", () => {
+        setSocketStatus("connected");
+        socket.send(JSON.stringify({ type: "join", role: nextRole, token: nextToken, nickname }));
+      });
 
-    socket.addEventListener("close", () => setSocketStatus("closed"));
-    socket.addEventListener("error", () => setSocketStatus("error"));
-    socket.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === "room_snapshot") setState(message.state);
-      if (message.type === "turn_started") {
-        setState((previous) => (previous ? { ...previous, turn: { id: message.turnId, side: message.side, endsAt: message.endsAt } } : previous));
-        if (message.side !== "viewers") setVoteSummary({ totalVotes: 0, top: [] });
-      }
-      if (message.type === "move_committed") {
-        setState(message.state);
-        setVoteSummary({ totalVotes: 0, top: [] });
-        if (!muted) audioRef.current?.play(message.state.game);
-      }
-      if (message.type === "vote_summary") setVoteSummary({ totalVotes: message.totalVotes, top: message.top });
-      if (message.type === "viewer_count") {
-        setState((previous) => (previous ? { ...previous, viewerCount: message.count } : previous));
-      }
-      if (message.type === "error") setError(message.message || message.code);
-    });
-  }, [muted, nickname, token]);
+      socket.addEventListener("close", () => setSocketStatus("closed"));
+      socket.addEventListener("error", () => setSocketStatus("error"));
+      socket.addEventListener("message", (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "room_snapshot") setState(message.state);
+        if (message.type === "turn_started") {
+          setState((previous) =>
+            previous ? { ...previous, turn: { id: message.turnId, side: message.side, endsAt: message.endsAt } } : previous,
+          );
+          if (message.side !== "viewers") setVoteSummary({ totalVotes: 0, top: [] });
+        }
+        if (message.type === "move_committed") {
+          setState(message.state);
+          setVoteSummary({ totalVotes: 0, top: [] });
+          if (!muted) audioRef.current?.play(message.state.game);
+        }
+        if (message.type === "vote_summary") setVoteSummary({ totalVotes: message.totalVotes, top: message.top });
+        if (message.type === "viewer_count") {
+          setState((previous) => (previous ? { ...previous, viewerCount: message.count } : previous));
+        }
+        if (message.type === "error") setError(message.message || message.code);
+      });
+    },
+    [muted, nickname, token],
+  );
 
   const createRoom = async (event) => {
     event.preventDefault();
@@ -179,13 +177,20 @@ function EntryScreen(props) {
         </div>
 
         <div className="mode-tabs">
-          <button className={props.mode === "create" ? "active" : ""} onClick={() => props.setMode("create")}>방 만들기</button>
-          <button className={props.mode === "join" ? "active" : ""} onClick={() => props.setMode("join")}>참여하기</button>
+          <button className={props.mode === "create" ? "active" : ""} onClick={() => props.setMode("create")}>
+            방 만들기
+          </button>
+          <button className={props.mode === "join" ? "active" : ""} onClick={() => props.setMode("join")}>
+            참여하기
+          </button>
         </div>
 
         {props.mode === "create" ? (
           <form onSubmit={props.createRoom} className="entry-form">
-            <label>암호<input type="password" value={props.password} onChange={(event) => props.setPassword(event.target.value)} required /></label>
+            <label>
+              암호
+              <input type="password" value={props.password} onChange={(event) => props.setPassword(event.target.value)} required />
+            </label>
             <fieldset>
               <legend>게임</legend>
               <div className="segmented">
@@ -198,12 +203,19 @@ function EntryScreen(props) {
             </fieldset>
             <TimeSelect label="스트리머 제한시간" value={props.streamerSeconds} setValue={props.setStreamerSeconds} />
             <TimeSelect label="시청자 제한시간" value={props.viewerSeconds} setValue={props.setViewerSeconds} />
-            <button className="primary" type="submit">방 생성</button>
+            <button className="primary" type="submit">
+              방 생성
+            </button>
           </form>
         ) : (
           <form onSubmit={props.joinRoom} className="entry-form">
-            <label>닉네임<input value={props.nickname} onChange={(event) => props.setNickname(event.target.value)} placeholder="선택 사항" /></label>
-            <button className="primary" type="submit">입장</button>
+            <label>
+              닉네임
+              <input value={props.nickname} onChange={(event) => props.setNickname(event.target.value)} placeholder="선택 사항" />
+            </label>
+            <button className="primary" type="submit">
+              입장
+            </button>
           </form>
         )}
         {props.error && <p className="error-line">{props.error}</p>}
@@ -217,7 +229,11 @@ function TimeSelect({ label, value, setValue }) {
     <label>
       {label}
       <select value={value} onChange={(event) => setValue(Number(event.target.value))}>
-        {timeOptions.map((seconds) => <option key={seconds} value={seconds}>{seconds}초</option>)}
+        {timeOptions.map((seconds) => (
+          <option key={seconds} value={seconds}>
+            {seconds}초
+          </option>
+        ))}
       </select>
     </label>
   );
@@ -237,9 +253,17 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
         <div className="topbar-actions">
           <span className="metric">{socketStatus}</span>
           <span className="metric">시청자 {state?.viewerCount || 0}</span>
-          <span className="metric">{state?.turn?.side === "viewers" ? "시청자 턴" : "스트리머 턴"} {countdown}s</span>
-          <button className="icon-button" title="효과음" onClick={() => setMuted(!muted)}>{muted ? "🔇" : "🔊"}</button>
-          {role === "streamer" && <button className="danger" onClick={resetRoom}>초기화</button>}
+          <span className="metric">
+            {state?.turn?.side === "viewers" ? "시청자 턴" : "스트리머 턴"} {countdown}s
+          </span>
+          <button className="icon-button" title="효과음" onClick={() => setMuted(!muted)}>
+            {muted ? "음소거" : "소리"}
+          </button>
+          {role === "streamer" && (
+            <button className="danger" onClick={resetRoom}>
+              초기화
+            </button>
+          )}
         </div>
       </header>
 
@@ -248,8 +272,9 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
         <aside className="side-panel">
           <h2>투표 현황</h2>
           <VoteList voteSummary={voteSummary} />
-          {state?.gameState?.winner && <p className="winner">{state.gameState.winner === "black" ? "흑" : "백"} 승리</p>}
-          {state?.gameState?.scaffoldNotice && <p className="notice">{state.gameState.scaffoldNotice}</p>}
+          {state?.gameState?.winner && <p className="winner">{sideLabel(state.gameState.winner)} 승리</p>}
+          {state?.gameState?.isCheck && <p className="notice">체크 상태입니다.</p>}
+          {state?.gameState?.isDraw && <p className="notice">무승부 상태입니다.</p>}
           {error && <p className="error-line">{error}</p>}
         </aside>
       </section>
@@ -258,32 +283,58 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
 }
 
 function Board({ game, state, voteSummary, role, turn, onMove }) {
+  const [selected, setSelected] = useState(null);
   const size = boardSize(game);
   const overlays = useMemo(() => {
     const map = new Map();
     for (const item of voteSummary.top || []) {
-      map.set(`${item.move.row}:${item.move.col}`, item);
+      const key = item.move.to ? `${item.move.to.row}:${item.move.to.col}` : `${item.move.row}:${item.move.col}`;
+      map.set(key, item);
     }
     return map;
   }, [voteSummary]);
+
+  useEffect(() => {
+    setSelected(null);
+  }, [game, state?.moveNumber, turn?.id]);
+
+  const handleCell = (row, col) => {
+    if (game === "omok" || game === "baduk") {
+      onMove({ game, row, col });
+      return;
+    }
+
+    const piece = state?.board?.[row]?.[col];
+    const currentSide = state?.nextSide || "black";
+    if (!selected && piece?.side === currentSide) {
+      setSelected({ row, col });
+      return;
+    }
+    if (selected) {
+      onMove({ game, from: selected, to: { row, col }, promotion: "q" });
+      setSelected(null);
+      return;
+    }
+    if (piece) setSelected({ row, col });
+  };
 
   return (
     <div className={`board-wrap ${game}`}>
       <div className={`board ${game}`} style={{ "--size": size.cols }}>
         {Array.from({ length: size.rows }).map((_, row) =>
           Array.from({ length: size.cols }).map((_, col) => {
-            const stone = state?.board?.[row]?.[col] || null;
+            const piece = state?.board?.[row]?.[col] || null;
             const vote = overlays.get(`${row}:${col}`);
-            const last = state?.lastMove?.row === row && state?.lastMove?.col === col;
+            const last = lastMoveAt(state?.lastMove, row, col);
+            const isSelected = selected?.row === row && selected?.col === col;
             return (
               <button
                 key={`${row}-${col}`}
-                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""}`}
-                onClick={() => onMove({ game, row, col })}
+                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""} ${isSelected ? "selected" : ""}`}
+                onClick={() => handleCell(row, col)}
                 title={`${row + 1}, ${col + 1}`}
               >
-                {game === "chess" && !stone && chessInitial(row, col)}
-                {stone && <Piece game={game} stone={stone} row={row} col={col} />}
+                {piece && <Piece game={game} piece={piece} row={row} col={col} />}
                 {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
               </button>
             );
@@ -291,21 +342,24 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
         )}
         {game === "janggi" && <div className="palace top" />}
         {game === "janggi" && <div className="palace bottom" />}
-        {(game === "baduk" || game === "omok") && starPoints(size.rows, size.cols).map((point) => <i key={point.join("-")} className="star" style={{ gridRow: point[0] + 1, gridColumn: point[1] + 1 }} />)}
+        {(game === "baduk" || game === "omok") &&
+          starPoints(size.rows, size.cols).map((point) => (
+            <i key={point.join("-")} className="star" style={{ gridRow: point[0] + 1, gridColumn: point[1] + 1 }} />
+          ))}
       </div>
-      <div className="turn-help">{role === "streamer" ? "마우스로 착수" : "마우스로 투표"}</div>
+      <div className="turn-help">{role === "streamer" ? "마우스로 착수" : game === "omok" || game === "baduk" ? "마우스로 투표" : "말을 고른 뒤 목적지를 투표"}</div>
     </div>
   );
 }
 
-function Piece({ game, stone, row, col }) {
+function Piece({ game, piece }) {
   if (game === "janggi") {
-    return <span className={`piece janggi-piece ${stone}`}>{stone === "black" ? janggiBlack(row, col) : janggiRed(row, col)}</span>;
+    return <span className={`piece janggi-piece ${piece.side}`}>{piece.label}</span>;
   }
   if (game === "chess") {
-    return <span className={`piece chess-piece ${stone}`}>{stone === "black" ? "♟" : "♙"}</span>;
+    return <span className={`piece chess-piece ${piece.side}`}>{piece.label}</span>;
   }
-  return <span className={`piece stone ${stone}`} />;
+  return <span className={`piece stone ${piece}`} />;
 }
 
 function VoteList({ voteSummary }) {
@@ -314,7 +368,7 @@ function VoteList({ voteSummary }) {
     <ol className="vote-list">
       {voteSummary.top.map((item) => (
         <li key={item.key}>
-          <span>{item.move.row + 1}, {item.move.col + 1}</span>
+          <span>{moveLabel(item.move)}</span>
           <strong>{item.percent}%</strong>
         </li>
       ))}
@@ -335,6 +389,7 @@ function useCountdown(turn) {
 function boardSize(game) {
   if (game === "chess") return { rows: 8, cols: 8 };
   if (game === "janggi") return { rows: 10, cols: 9 };
+  if (game === "baduk") return { rows: 19, cols: 19 };
   return { rows: 15, cols: 15 };
 }
 
@@ -342,35 +397,29 @@ function labelForGame(game) {
   return games.find((item) => item.id === game)?.label || "오목";
 }
 
+function sideLabel(side) {
+  return side === "black" ? "흑" : side === "white" ? "백" : side;
+}
+
 function cellShade(game, row, col) {
   if (game === "chess") return (row + col) % 2 === 0 ? "light" : "dark";
   return "";
 }
 
-function chessInitial(row, col) {
-  if (row === 1) return "♟";
-  if (row === 6) return "♙";
-  const black = ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"];
-  const white = ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"];
-  if (row === 0) return black[col];
-  if (row === 7) return white[col];
-  return "";
+function lastMoveAt(lastMove, row, col) {
+  if (!lastMove) return false;
+  if (lastMove.to) return lastMove.to.row === row && lastMove.to.col === col;
+  return lastMove.row === row && lastMove.col === col;
 }
 
-function janggiBlack(row, col) {
-  const labels = ["車", "馬", "象", "士", "將", "士", "象", "馬", "車"];
-  if (row === 0) return labels[col] || "卒";
-  return "卒";
-}
-
-function janggiRed(row, col) {
-  const labels = ["車", "馬", "象", "士", "帥", "士", "象", "馬", "車"];
-  if (row === 9) return labels[col] || "兵";
-  return "兵";
+function moveLabel(move) {
+  if (move.to) return `${move.from.row + 1},${move.from.col + 1} -> ${move.to.row + 1},${move.to.col + 1}`;
+  if (move.pass) return "패스";
+  return `${move.row + 1}, ${move.col + 1}`;
 }
 
 function starPoints(rows, cols) {
-  const points = rows === 15 ? [3, 7, 11] : [3, 9, 15];
+  const points = rows === 19 ? [3, 9, 15] : [3, 7, 11];
   return points.flatMap((row) => points.map((col) => [row, col])).filter(([row, col]) => row < rows && col < cols);
 }
 

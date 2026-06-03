@@ -1,5 +1,3 @@
-import { moveKey, parseMoveKey } from "./omok.js";
-
 export function createVoteState() {
   return {
     byViewer: new Map(),
@@ -56,7 +54,7 @@ export function summarizeVotes(voteState, topN = 10) {
     .slice(0, topN)
     .map((candidate) => ({
       key: candidate.key,
-      move: candidate.move || parseMoveKey(candidate.key),
+      move: candidate.move,
       votes: candidate.votes,
       percent: totalVotes === 0 ? 0 : Math.round((candidate.votes / totalVotes) * 100),
     }));
@@ -68,7 +66,7 @@ export function winningVote(voteState) {
   const [winner] = [...voteState.candidates.values()]
     .filter((candidate) => candidate.votes > 0)
     .sort(compareCandidates);
-  return winner ? { key: winner.key, move: winner.move || parseMoveKey(winner.key), votes: winner.votes } : null;
+  return winner ? { key: winner.key, move: winner.move, votes: winner.votes } : null;
 }
 
 function decrementCandidate(voteState, key) {
@@ -84,4 +82,12 @@ function compareCandidates(a, b) {
   if (b.votes !== a.votes) return b.votes - a.votes;
   if (a.firstReachedAt !== b.firstReachedAt) return a.firstReachedAt - b.firstReachedAt;
   return a.sequence - b.sequence;
+}
+
+function moveKey(move) {
+  if (move?.pass) return `${move.game}:pass`;
+  if (move?.from && move?.to) {
+    return `${move.game}:${move.from.row}:${move.from.col}->${move.to.row}:${move.to.col}:${move.promotion || ""}`;
+  }
+  return `${move.game}:${move.row}:${move.col}`;
 }

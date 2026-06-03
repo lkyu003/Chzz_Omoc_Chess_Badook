@@ -1,4 +1,5 @@
-import { applyOmokMove, createOmokState, isLegalOmokMove, moveKey } from "../src/shared/omok.js";
+import { createInitialGameState, applyGameMove, isLegalGameMove } from "../src/shared/gameRules.js";
+import { createOmokState } from "../src/shared/omok.js";
 import { clearVote, createVoteState, recordVote, summarizeVotes, winningVote } from "../src/shared/votes.js";
 import { roomConfig } from "./config.js";
 
@@ -215,7 +216,7 @@ export class GameRoom {
     if (client?.role !== "viewer" || this.room.turn?.side !== "viewers") return;
     if (now - client.lastVoteAt < 300) return;
     client.lastVoteAt = now;
-    if (!isLegalMove(this.room.gameState, message.move)) return;
+    if (!isLegalGameMove(this.room.gameState, message.move)) return;
 
     recordVote(this.room.votes, socketId, message.move, now);
     this.send(socketId, {
@@ -273,7 +274,7 @@ export class GameRoom {
   finishViewerTurn(turnId) {
     if (this.room.turn?.id !== turnId || this.room.turn.side !== "viewers") return;
     const winner = winningVote(this.room.votes);
-    if (winner && isLegalMove(this.room.gameState, winner.move)) {
+    if (winner && isLegalGameMove(this.room.gameState, winner.move)) {
       this.commitMove(winner.move, "viewers");
       return;
     }
@@ -281,11 +282,11 @@ export class GameRoom {
   }
 
   commitMove(move, by) {
-    if (!isLegalMove(this.room.gameState, move)) {
+    if (!isLegalGameMove(this.room.gameState, move)) {
       return false;
     }
 
-    const result = applyMove(this.room.gameState, move);
+    const result = applyGameMove(this.room.gameState, move);
     if (!result.ok) return false;
 
     this.room.gameState = result.state;
@@ -406,30 +407,8 @@ function emptyRoom() {
   };
 }
 
-function createInitialGameState(game) {
-  if (game === "omok") return createOmokState();
-  return {
-    ...createOmokState(),
-    game,
-    scaffoldNotice: `${game} visual scaffold is enabled; Omok rules are the MVP-authoritative implementation.`,
-  };
-}
-
 function isSupportedGame(game) {
   return ["omok", "baduk", "janggi", "chess"].includes(game);
-}
-
-function isLegalMove(state, move) {
-  if (state.game !== "omok" && move?.game !== state.game) return false;
-  if (state.game === "omok") return isLegalOmokMove(state, move);
-  return isLegalOmokMove({ ...state, game: "omok" }, { ...move, game: "omok" });
-}
-
-function applyMove(state, move) {
-  if (state.game === "omok") return applyOmokMove(state, move);
-  const result = applyOmokMove({ ...state, game: "omok" }, { ...move, game: "omok" });
-  if (!result.ok) return result;
-  return { ...result, state: { ...result.state, game: state.game, scaffoldNotice: state.scaffoldNotice } };
 }
 
 function clampSeconds(value) {

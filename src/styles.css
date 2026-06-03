@@ -287,6 +287,12 @@ legend {
   z-index: 2;
 }
 
+.cell.selected {
+  outline: 3px solid #f8d46b;
+  outline-offset: -3px;
+  z-index: 2;
+}
+
 .cell.last::after {
   content: "";
   position: absolute;
