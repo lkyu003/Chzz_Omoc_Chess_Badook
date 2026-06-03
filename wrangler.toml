@@ -1,0 +1,21 @@
+name = "streamer-board-vote-room"
+main = "worker/index.js"
+compatibility_date = "2026-06-03"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
+
+[vars]
+MAX_VIEWERS = "250"
+VOTE_BROADCAST_INTERVAL_MS = "5000"
+TOP_VOTE_CANDIDATES = "10"
+HARNESS_MODE = "false"

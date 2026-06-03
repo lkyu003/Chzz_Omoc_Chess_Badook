@@ -1,0 +1,377 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { createMoveAudio } from "./sound/moveAudio.js";
+import "./styles.css";
+
+const games = [
+  { id: "omok", label: "오목" },
+  { id: "baduk", label: "바둑" },
+  { id: "janggi", label: "장기" },
+  { id: "chess", label: "체스" },
+];
+
+const timeOptions = [5, 10, 15, 20, 25, 30];
+
+function App() {
+  const [mode, setMode] = useState("join");
+  const [role, setRole] = useState(null);
+  const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [game, setGame] = useState("omok");
+  const [streamerSeconds, setStreamerSeconds] = useState(30);
+  const [viewerSeconds, setViewerSeconds] = useState(30);
+  const [token, setToken] = useState(localStorage.getItem("streamerToken") || "");
+  const [socketStatus, setSocketStatus] = useState("idle");
+  const [state, setState] = useState(null);
+  const [voteSummary, setVoteSummary] = useState({ totalVotes: 0, top: [] });
+  const [error, setError] = useState("");
+  const [muted, setMuted] = useState(localStorage.getItem("muted") === "true");
+  const socketRef = useRef(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    audioRef.current = createMoveAudio();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("muted", String(muted));
+  }, [muted]);
+
+  const connect = useCallback((nextRole, nextToken = token) => {
+    socketRef.current?.close();
+    setSocketStatus("connecting");
+    setError("");
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${protocol}://${location.host}/ws`);
+    socketRef.current = socket;
+
+    socket.addEventListener("open", () => {
+      setSocketStatus("connected");
+      socket.send(
+        JSON.stringify({
+          type: "join",
+          role: nextRole,
+          token: nextToken,
+          nickname,
+        }),
+      );
+    });
+
+    socket.addEventListener("close", () => setSocketStatus("closed"));
+    socket.addEventListener("error", () => setSocketStatus("error"));
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "room_snapshot") setState(message.state);
+      if (message.type === "turn_started") {
+        setState((previous) => (previous ? { ...previous, turn: { id: message.turnId, side: message.side, endsAt: message.endsAt } } : previous));
+        if (message.side !== "viewers") setVoteSummary({ totalVotes: 0, top: [] });
+      }
+      if (message.type === "move_committed") {
+        setState(message.state);
+        setVoteSummary({ totalVotes: 0, top: [] });
+        if (!muted) audioRef.current?.play(message.state.game);
+      }
+      if (message.type === "vote_summary") setVoteSummary({ totalVotes: message.totalVotes, top: message.top });
+      if (message.type === "viewer_count") {
+        setState((previous) => (previous ? { ...previous, viewerCount: message.count } : previous));
+      }
+      if (message.type === "error") setError(message.message || message.code);
+    });
+  }, [muted, nickname, token]);
+
+  const createRoom = async (event) => {
+    event.preventDefault();
+    setError("");
+    audioRef.current?.unlock();
+    const response = await fetch("/api/room/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, game, streamerSeconds, viewerSeconds }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) {
+      setError(payload.code || "방 생성 실패");
+      return;
+    }
+    localStorage.setItem("streamerToken", payload.streamerToken);
+    setToken(payload.streamerToken);
+    setRole("streamer");
+    setState(payload.state);
+    connect("streamer", payload.streamerToken);
+  };
+
+  const joinRoom = (event) => {
+    event.preventDefault();
+    audioRef.current?.unlock();
+    setRole("viewer");
+    connect("viewer", "");
+  };
+
+  const resetRoom = async () => {
+    if (!token) return;
+    await fetch("/api/room/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+  };
+
+  const sendMove = (move) => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !state?.active) return;
+    const isStreamerTurn = role === "streamer" && state.turn?.side === "streamer";
+    const isViewerTurn = role === "viewer" && state.turn?.side === "viewers";
+    if (isStreamerTurn) {
+      socket.send(JSON.stringify({ type: "streamer_move", move, clientMoveId: crypto.randomUUID() }));
+    }
+    if (isViewerTurn) {
+      socket.send(JSON.stringify({ type: "viewer_vote", move, clientVoteId: crypto.randomUUID() }));
+    }
+  };
+
+  if (!role) {
+    return (
+      <EntryScreen
+        mode={mode}
+        setMode={setMode}
+        nickname={nickname}
+        setNickname={setNickname}
+        password={password}
+        setPassword={setPassword}
+        game={game}
+        setGame={setGame}
+        streamerSeconds={streamerSeconds}
+        setStreamerSeconds={setStreamerSeconds}
+        viewerSeconds={viewerSeconds}
+        setViewerSeconds={setViewerSeconds}
+        createRoom={createRoom}
+        joinRoom={joinRoom}
+        error={error}
+      />
+    );
+  }
+
+  return (
+    <GameScreen
+      role={role}
+      state={state}
+      socketStatus={socketStatus}
+      voteSummary={voteSummary}
+      error={error}
+      muted={muted}
+      setMuted={setMuted}
+      onMove={sendMove}
+      resetRoom={resetRoom}
+    />
+  );
+}
+
+function EntryScreen(props) {
+  return (
+    <main className="entry-shell">
+      <section className="entry-panel">
+        <div className="brand-row">
+          <div>
+            <h1>대국 투표방</h1>
+            <p>스트리머 한 명과 시청자 다수가 한 수씩 겨룹니다.</p>
+          </div>
+          <span className="status-pill">Cloudflare 1 Room</span>
+        </div>
+
+        <div className="mode-tabs">
+          <button className={props.mode === "create" ? "active" : ""} onClick={() => props.setMode("create")}>방 만들기</button>
+          <button className={props.mode === "join" ? "active" : ""} onClick={() => props.setMode("join")}>참여하기</button>
+        </div>
+
+        {props.mode === "create" ? (
+          <form onSubmit={props.createRoom} className="entry-form">
+            <label>암호<input type="password" value={props.password} onChange={(event) => props.setPassword(event.target.value)} required /></label>
+            <fieldset>
+              <legend>게임</legend>
+              <div className="segmented">
+                {games.map((item) => (
+                  <button type="button" key={item.id} className={props.game === item.id ? "active" : ""} onClick={() => props.setGame(item.id)}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <TimeSelect label="스트리머 제한시간" value={props.streamerSeconds} setValue={props.setStreamerSeconds} />
+            <TimeSelect label="시청자 제한시간" value={props.viewerSeconds} setValue={props.setViewerSeconds} />
+            <button className="primary" type="submit">방 생성</button>
+          </form>
+        ) : (
+          <form onSubmit={props.joinRoom} className="entry-form">
+            <label>닉네임<input value={props.nickname} onChange={(event) => props.setNickname(event.target.value)} placeholder="선택 사항" /></label>
+            <button className="primary" type="submit">입장</button>
+          </form>
+        )}
+        {props.error && <p className="error-line">{props.error}</p>}
+      </section>
+    </main>
+  );
+}
+
+function TimeSelect({ label, value, setValue }) {
+  return (
+    <label>
+      {label}
+      <select value={value} onChange={(event) => setValue(Number(event.target.value))}>
+        {timeOptions.map((seconds) => <option key={seconds} value={seconds}>{seconds}초</option>)}
+      </select>
+    </label>
+  );
+}
+
+function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom }) {
+  const countdown = useCountdown(state?.turn);
+  const game = state?.game || "omok";
+
+  return (
+    <main className={`game-shell theme-${game}`}>
+      <header className="topbar">
+        <div>
+          <strong>{labelForGame(game)}</strong>
+          <span>{role === "streamer" ? "스트리머" : "시청자"}</span>
+        </div>
+        <div className="topbar-actions">
+          <span className="metric">{socketStatus}</span>
+          <span className="metric">시청자 {state?.viewerCount || 0}</span>
+          <span className="metric">{state?.turn?.side === "viewers" ? "시청자 턴" : "스트리머 턴"} {countdown}s</span>
+          <button className="icon-button" title="효과음" onClick={() => setMuted(!muted)}>{muted ? "🔇" : "🔊"}</button>
+          {role === "streamer" && <button className="danger" onClick={resetRoom}>초기화</button>}
+        </div>
+      </header>
+
+      <section className="game-layout">
+        <Board game={game} state={state?.gameState} voteSummary={voteSummary} role={role} turn={state?.turn} onMove={onMove} />
+        <aside className="side-panel">
+          <h2>투표 현황</h2>
+          <VoteList voteSummary={voteSummary} />
+          {state?.gameState?.winner && <p className="winner">{state.gameState.winner === "black" ? "흑" : "백"} 승리</p>}
+          {state?.gameState?.scaffoldNotice && <p className="notice">{state.gameState.scaffoldNotice}</p>}
+          {error && <p className="error-line">{error}</p>}
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function Board({ game, state, voteSummary, role, turn, onMove }) {
+  const size = boardSize(game);
+  const overlays = useMemo(() => {
+    const map = new Map();
+    for (const item of voteSummary.top || []) {
+      map.set(`${item.move.row}:${item.move.col}`, item);
+    }
+    return map;
+  }, [voteSummary]);
+
+  return (
+    <div className={`board-wrap ${game}`}>
+      <div className={`board ${game}`} style={{ "--size": size.cols }}>
+        {Array.from({ length: size.rows }).map((_, row) =>
+          Array.from({ length: size.cols }).map((_, col) => {
+            const stone = state?.board?.[row]?.[col] || null;
+            const vote = overlays.get(`${row}:${col}`);
+            const last = state?.lastMove?.row === row && state?.lastMove?.col === col;
+            return (
+              <button
+                key={`${row}-${col}`}
+                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""}`}
+                onClick={() => onMove({ game, row, col })}
+                title={`${row + 1}, ${col + 1}`}
+              >
+                {game === "chess" && !stone && chessInitial(row, col)}
+                {stone && <Piece game={game} stone={stone} row={row} col={col} />}
+                {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
+              </button>
+            );
+          }),
+        )}
+        {game === "janggi" && <div className="palace top" />}
+        {game === "janggi" && <div className="palace bottom" />}
+        {(game === "baduk" || game === "omok") && starPoints(size.rows, size.cols).map((point) => <i key={point.join("-")} className="star" style={{ gridRow: point[0] + 1, gridColumn: point[1] + 1 }} />)}
+      </div>
+      <div className="turn-help">{role === "streamer" ? "마우스로 착수" : "마우스로 투표"}</div>
+    </div>
+  );
+}
+
+function Piece({ game, stone, row, col }) {
+  if (game === "janggi") {
+    return <span className={`piece janggi-piece ${stone}`}>{stone === "black" ? janggiBlack(row, col) : janggiRed(row, col)}</span>;
+  }
+  if (game === "chess") {
+    return <span className={`piece chess-piece ${stone}`}>{stone === "black" ? "♟" : "♙"}</span>;
+  }
+  return <span className={`piece stone ${stone}`} />;
+}
+
+function VoteList({ voteSummary }) {
+  if (!voteSummary.totalVotes) return <p className="empty">아직 집계된 투표가 없습니다.</p>;
+  return (
+    <ol className="vote-list">
+      {voteSummary.top.map((item) => (
+        <li key={item.key}>
+          <span>{item.move.row + 1}, {item.move.col + 1}</span>
+          <strong>{item.percent}%</strong>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function useCountdown(turn) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  if (!turn?.endsAt) return 0;
+  return Math.max(0, Math.ceil((turn.endsAt - now) / 1000));
+}
+
+function boardSize(game) {
+  if (game === "chess") return { rows: 8, cols: 8 };
+  if (game === "janggi") return { rows: 10, cols: 9 };
+  return { rows: 15, cols: 15 };
+}
+
+function labelForGame(game) {
+  return games.find((item) => item.id === game)?.label || "오목";
+}
+
+function cellShade(game, row, col) {
+  if (game === "chess") return (row + col) % 2 === 0 ? "light" : "dark";
+  return "";
+}
+
+function chessInitial(row, col) {
+  if (row === 1) return "♟";
+  if (row === 6) return "♙";
+  const black = ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"];
+  const white = ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"];
+  if (row === 0) return black[col];
+  if (row === 7) return white[col];
+  return "";
+}
+
+function janggiBlack(row, col) {
+  const labels = ["車", "馬", "象", "士", "將", "士", "象", "馬", "車"];
+  if (row === 0) return labels[col] || "卒";
+  return "卒";
+}
+
+function janggiRed(row, col) {
+  const labels = ["車", "馬", "象", "士", "帥", "士", "象", "馬", "車"];
+  if (row === 9) return labels[col] || "兵";
+  return "兵";
+}
+
+function starPoints(rows, cols) {
+  const points = rows === 15 ? [3, 7, 11] : [3, 9, 15];
+  return points.flatMap((row) => points.map((col) => [row, col])).filter(([row, col]) => row < rows && col < cols);
+}
+
+createRoot(document.getElementById("root")).render(<App />);
