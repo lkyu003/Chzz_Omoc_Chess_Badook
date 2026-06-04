@@ -300,13 +300,13 @@ legend {
 }
 
 .janggi-canvas line {
-  stroke: rgba(55, 31, 15, 0.9);
-  stroke-width: 0.026;
+  stroke: rgba(42, 24, 12, 0.9);
+  stroke-width: 1.45;
   vector-effect: non-scaling-stroke;
 }
 
 .janggi-canvas .palace-line {
-  stroke-width: 0.032;
+  stroke-width: 1.8;
 }
 
 .board.chess {
