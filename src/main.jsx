@@ -330,10 +330,96 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
   const game = state?.game || "omok";
   const winnerText = victoryText(game, state?.gameState?.winner);
   const [dismissedWinner, setDismissedWinner] = useState("");
+  const [pipMessage, setPipMessage] = useState("");
+  const pipWindowRef = useRef(null);
+  const pipRootRef = useRef(null);
+  const pipContainerRef = useRef(null);
 
   useEffect(() => {
     setDismissedWinner("");
   }, [winnerText]);
+
+  const closeBoardPip = useCallback(() => {
+    pipRootRef.current?.unmount();
+    pipRootRef.current = null;
+    pipContainerRef.current = null;
+    const pipWindow = pipWindowRef.current;
+    pipWindowRef.current = null;
+    if (pipWindow && !pipWindow.closed) pipWindow.close();
+  }, []);
+
+  useEffect(() => closeBoardPip, [closeBoardPip]);
+
+  useEffect(() => {
+    const pipWindow = pipWindowRef.current;
+    const pipRoot = pipRootRef.current;
+    if (!pipWindow || pipWindow.closed || !pipRoot) return;
+    pipWindow.document.body.className = `pip-body theme-${game}`;
+    pipRoot.render(
+      <BoardPipContent
+        game={game}
+        state={state}
+        voteSummary={voteSummary}
+        role={role}
+        countdown={countdown}
+        onMove={onMove}
+      />,
+    );
+  }, [countdown, game, onMove, role, state, voteSummary]);
+
+  const openBoardPip = useCallback(async () => {
+    setPipMessage("");
+    if (!("documentPictureInPicture" in window)) {
+      setPipMessage("Chrome / Edge 최신 버전에서만 PiP 게임판을 사용할 수 있습니다.");
+      return;
+    }
+    if (pipWindowRef.current && !pipWindowRef.current.closed) {
+      pipWindowRef.current.focus();
+      return;
+    }
+
+    try {
+      const pipWindow = await window.documentPictureInPicture.requestWindow({
+        width: Math.min(760, Math.max(420, Math.round(window.innerWidth * 0.42))),
+        height: Math.min(820, Math.max(520, Math.round(window.innerHeight * 0.72))),
+      });
+      copyStylesToPip(pipWindow.document);
+      pipWindow.document.title = "Game Board PiP";
+      pipWindow.document.body.className = `pip-body theme-${game}`;
+      const container = pipWindow.document.createElement("div");
+      container.id = "pip-root";
+      pipWindow.document.body.append(container);
+      pipWindow.addEventListener("pagehide", () => {
+        pipRootRef.current?.unmount();
+        pipRootRef.current = null;
+        pipContainerRef.current = null;
+        pipWindowRef.current = null;
+      });
+      pipWindow.addEventListener("resize", () => {
+        pipWindow.document.documentElement.style.setProperty("--pip-width", `${pipWindow.innerWidth}px`);
+        pipWindow.document.documentElement.style.setProperty("--pip-height", `${pipWindow.innerHeight}px`);
+      });
+      pipWindow.document.documentElement.style.setProperty("--pip-width", `${pipWindow.innerWidth}px`);
+      pipWindow.document.documentElement.style.setProperty("--pip-height", `${pipWindow.innerHeight}px`);
+      pipWindowRef.current = pipWindow;
+      pipContainerRef.current = container;
+      pipRootRef.current = createRoot(container);
+      pipRootRef.current.render(
+        <BoardPipContent
+          game={game}
+          state={state}
+          voteSummary={voteSummary}
+          role={role}
+          countdown={countdown}
+          onMove={onMove}
+        />,
+      );
+    } catch (pipError) {
+      if (pipError?.name !== "AbortError") {
+        setPipMessage("PiP 게임판을 열지 못했습니다. 브라우저 권한이나 창 차단 설정을 확인해 주세요.");
+      }
+    }
+  }, [countdown, game, onMove, role, state, voteSummary]);
 
   return (
     <main className={`game-shell theme-${game}`}>
@@ -350,6 +436,9 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           </span>
           <button className="icon-button" title="효과음" onClick={() => setMuted(!muted)}>
             {muted ? "음소거" : "소리"}
+          </button>
+          <button className="secondary" onClick={openBoardPip}>
+            PiP
           </button>
           {role === "streamer" && (
             <button className="secondary" onClick={() => setSetupOpen(true)}>
@@ -376,6 +465,7 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           {state?.gameState?.isCheck && <p className="notice">체크 상태입니다.</p>}
           {state?.gameState?.isDraw && <p className="notice">무승부 상태입니다.</p>}
           {error && <p className="error-line">{error}</p>}
+          {pipMessage && <p className="notice">{pipMessage}</p>}
         </aside>
       </section>
       {setupOpen && (
@@ -386,6 +476,21 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
         />
       )}
       {winnerText && dismissedWinner !== winnerText && <VictoryOverlay text={winnerText} onDismiss={() => setDismissedWinner(winnerText)} />}
+    </main>
+  );
+}
+
+function copyStylesToPip(targetDocument) {
+  for (const sheet of document.querySelectorAll('link[rel="stylesheet"], style')) {
+    targetDocument.head.append(sheet.cloneNode(true));
+  }
+}
+
+function BoardPipContent({ game, state, voteSummary, role, countdown, onMove }) {
+  return (
+    <main className={`pip-shell theme-${game}`}>
+      <Board game={game} state={state?.gameState} voteSummary={voteSummary} role={role} turn={state?.turn} onMove={onMove} />
+      <TurnClockBar game={game} turn={state?.turn} countdown={countdown} streamerSeconds={state?.streamerSeconds || 30} viewerSeconds={state?.viewerSeconds || 30} />
     </main>
   );
 }
