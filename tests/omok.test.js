@@ -27,6 +27,43 @@ test("omok rejects occupied intersections and detects five in a row", () => {
   assert.equal(isLegalOmokMove(state, { game: "omok", row: 7, col: 7 }), false);
 });
 
+test("renju rules reject black overlines", () => {
+  const state = createOmokState();
+  for (const col of [3, 4, 5, 6, 7]) {
+    state.board[7][col] = "black";
+  }
+
+  const result = applyOmokMove(state, { game: "omok", row: 7, col: 8 });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "illegal_move");
+});
+
+test("renju rules reject black double-threes", () => {
+  const state = createOmokState();
+  state.board[7][6] = "black";
+  state.board[7][8] = "black";
+  state.board[6][7] = "black";
+  state.board[8][7] = "black";
+
+  const result = applyOmokMove(state, { game: "omok", row: 7, col: 7 });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "illegal_move");
+});
+
+test("renju rules reject black double-fours", () => {
+  const state = createOmokState();
+  state.board[7][5] = "black";
+  state.board[7][6] = "black";
+  state.board[7][8] = "black";
+  state.board[5][7] = "black";
+  state.board[6][7] = "black";
+  state.board[8][7] = "black";
+
+  const result = applyOmokMove(state, { game: "omok", row: 7, col: 7 });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "illegal_move");
+});
+
 test("vote aggregation keeps latest vote per viewer and calculates percentages", () => {
   const votes = createVoteState();
   recordVote(votes, "a", { game: "omok", row: 7, col: 7 }, 1);
