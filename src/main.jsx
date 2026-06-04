@@ -28,6 +28,7 @@ function App() {
   const [error, setError] = useState("");
   const [muted, setMuted] = useState(localStorage.getItem("muted") === "true");
   const [setupOpen, setSetupOpen] = useState(false);
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const socketRef = useRef(null);
   const audioRef = useRef(null);
 
@@ -57,10 +58,12 @@ function App() {
       socket.addEventListener("error", () => setSocketStatus("error"));
       socket.addEventListener("message", (event) => {
         const message = JSON.parse(event.data);
+        if (message.state?.serverNow) setServerOffsetMs(message.state.serverNow - Date.now());
+        if (message.serverNow) setServerOffsetMs(message.serverNow - Date.now());
         if (message.type === "room_snapshot") setState(message.state);
         if (message.type === "turn_started") {
           setState((previous) =>
-            previous ? { ...previous, turn: { id: message.turnId, side: message.side, endsAt: message.endsAt } } : previous,
+            previous ? { ...previous, turn: { id: message.turnId, side: message.side, endsAt: message.endsAt, serverNow: message.serverNow } } : previous,
           );
           if (message.side !== "viewers") setVoteSummary({ totalVotes: 0, top: [] });
         }
@@ -188,6 +191,7 @@ function App() {
       reconfigureRoom={reconfigureRoom}
       setupOpen={setupOpen}
       setSetupOpen={setSetupOpen}
+      serverOffsetMs={serverOffsetMs}
     />
   );
 }
@@ -276,9 +280,10 @@ function TimeSelect({ label, value, setValue }) {
   );
 }
 
-function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom, reconfigureRoom, setupOpen, setSetupOpen }) {
-  const countdown = useCountdown(state?.turn);
+function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom, reconfigureRoom, setupOpen, setSetupOpen, serverOffsetMs }) {
+  const countdown = useCountdown(state?.turn, serverOffsetMs);
   const game = state?.game || "omok";
+  const winnerText = victoryText(game, state?.gameState?.winner);
 
   return (
     <main className={`game-shell theme-${game}`}>
@@ -330,7 +335,19 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           onSubmit={reconfigureRoom}
         />
       )}
+      {winnerText && <VictoryOverlay text={winnerText} />}
     </main>
+  );
+}
+
+function VictoryOverlay({ text }) {
+  return (
+    <div className="victory-overlay" aria-live="polite">
+      <div className="victory-bubble">
+        <span>승리</span>
+        <strong>{text}</strong>
+      </div>
+    </div>
   );
 }
 
@@ -582,12 +599,13 @@ function VoteList({ voteSummary }) {
   );
 }
 
-function useCountdown(turn) {
+function useCountdown(turn, serverOffsetMs = 0) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250);
+    setNow(Date.now() + serverOffsetMs);
+    const id = setInterval(() => setNow(Date.now() + serverOffsetMs), 100);
     return () => clearInterval(id);
-  }, []);
+  }, [serverOffsetMs, turn?.id]);
   if (!turn?.endsAt) return 0;
   return Math.max(0, Math.ceil((turn.endsAt - now) / 1000));
 }
@@ -605,6 +623,12 @@ function labelForGame(game) {
 
 function sideLabel(side) {
   return side === "black" ? "흑" : side === "white" ? "백" : side;
+}
+
+function victoryText(game, winner) {
+  if (!winner) return "";
+  const streamerSide = game === "chess" ? "white" : "black";
+  return winner === streamerSide ? "스트리머 승리" : "시청자 승리";
 }
 
 function cellShade(game, row, col) {

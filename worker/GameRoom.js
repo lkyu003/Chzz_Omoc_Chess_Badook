@@ -388,6 +388,7 @@ export class GameRoom {
       viewerSeconds: this.room.viewerSeconds,
       gameState: this.room.gameState,
       turn: this.room.turn,
+      serverNow: Date.now(),
       viewerCount: this.room.viewers.size,
       moveLogLength: this.room.moveLog.length,
       conservation: {

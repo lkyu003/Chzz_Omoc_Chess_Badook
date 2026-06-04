@@ -605,6 +605,51 @@ legend {
   color: #bff3cc;
 }
 
+.victory-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+  background: rgba(7, 10, 13, 0.34);
+}
+
+.victory-bubble {
+  min-width: min(520px, 92vw);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 36px;
+  padding: clamp(28px, 6vw, 54px);
+  text-align: center;
+  color: #17202a;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.94), transparent 34%),
+    linear-gradient(135deg, #fff3a7, #ffd5ec 48%, #bfe8ff);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.44), inset 0 -8px 0 rgba(255, 255, 255, 0.32);
+}
+
+.victory-bubble span,
+.victory-bubble strong {
+  display: block;
+  font-family: "Arial Rounded MT Bold", "Malgun Gothic", "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.victory-bubble span {
+  margin-bottom: 10px;
+  color: #5d6370;
+  font-size: clamp(18px, 4vw, 30px);
+  font-weight: 900;
+}
+
+.victory-bubble strong {
+  color: #182534;
+  font-size: clamp(44px, 10vw, 86px);
+  font-weight: 900;
+  line-height: 1.02;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
