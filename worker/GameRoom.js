@@ -1,4 +1,5 @@
 import { createInitialGameState, applyGameMove, isLegalGameMove } from "../src/shared/gameRules.js";
+import { JANGGI_SETUP_VERSION } from "../src/shared/janggi.js";
 import { createOmokState } from "../src/shared/omok.js";
 import { normalizePassword } from "../src/shared/password.js";
 import { clearVote, createVoteState, recordVote, summarizeVotes, winningVote } from "../src/shared/votes.js";
@@ -384,6 +385,7 @@ export class GameRoom {
   }
 
   publicState() {
+    this.ensureCurrentGameState();
     return {
       active: this.room.active,
       game: this.room.game,
@@ -442,6 +444,16 @@ export class GameRoom {
     this.turnTimer = null;
     this.voteBroadcastTimer = null;
     this.viewerCountBroadcastTimer = null;
+  }
+
+  ensureCurrentGameState() {
+    if (!this.room.active || this.room.game !== "janggi" || this.room.gameState?.setupVersion === JANGGI_SETUP_VERSION) return;
+    this.clearTimers();
+    this.room.gameState = createInitialGameState("janggi");
+    this.room.turn = null;
+    this.room.votes = createVoteState();
+    this.room.moveLog = [];
+    this.startTurn("streamer");
   }
 }
 

@@ -1,5 +1,6 @@
 export const JANGGI_ROWS = 10;
 export const JANGGI_COLS = 9;
+export const JANGGI_SETUP_VERSION = 2;
 
 export function createJanggiState() {
   const board = Array.from({ length: JANGGI_ROWS }, () => Array(JANGGI_COLS).fill(null));
@@ -26,6 +27,7 @@ export function createJanggiState() {
 
   return {
     game: "janggi",
+    setupVersion: JANGGI_SETUP_VERSION,
     rows: JANGGI_ROWS,
     cols: JANGGI_COLS,
     board,

@@ -547,10 +547,10 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
 
 function JanggiBoard({ state, voteSummary, role, turn, onMove, selected, setSelected, overlays }) {
   const size = boardSize("janggi");
-  const pad = 7;
+  const pad = 9;
   const xInterval = (100 - pad * 2) / (size.cols - 1);
   const yInterval = (100 - pad * 2) / (size.rows - 1);
-  const pointSize = Math.min(xInterval, yInterval) * 1.42;
+  const pointSize = Math.min(xInterval, yInterval) * 1.18;
 
   const handlePoint = (row, col) => {
     const piece = state?.board?.[row]?.[col];

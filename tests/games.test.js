@@ -36,9 +36,21 @@ test("chess accepts legal moves and rejects illegal moves", () => {
 
 test("janggi validates simple soldier and chariot moves", () => {
   let state = createJanggiState();
+  assert.equal(state.setupVersion, 2);
+  assert.equal(state.board[1][4].side, "white");
+  assert.equal(state.board[1][4].type, "general");
   assert.equal(state.board[8][4].side, "black");
   assert.equal(state.board[8][4].type, "general");
+  assert.equal(state.board[0][4], null);
   assert.equal(state.board[9][4], null);
+  assert.equal(state.board[2][1].type, "po");
+  assert.equal(state.board[2][7].type, "po");
+  assert.equal(state.board[7][1].type, "po");
+  assert.equal(state.board[7][7].type, "po");
+  for (const col of [0, 2, 4, 6, 8]) {
+    assert.equal(state.board[3][col].type, "soldier");
+    assert.equal(state.board[6][col].type, "soldier");
+  }
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 6, col: 0 }, to: { row: 5, col: 0 } }), true);
   let result = applyJanggiMove(state, { game: "janggi", from: { row: 6, col: 0 }, to: { row: 5, col: 0 } });
   assert.equal(result.ok, true);
