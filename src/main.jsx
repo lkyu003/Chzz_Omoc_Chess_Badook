@@ -545,13 +545,9 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
   );
 }
 
-function JanggiBoard({ state, voteSummary, role, turn, onMove, selected, setSelected, overlays }) {
-  const size = boardSize("janggi");
-  const pad = 9;
-  const xInterval = (100 - pad * 2) / (size.cols - 1);
-  const yInterval = (100 - pad * 2) / (size.rows - 1);
-  const pointSize = Math.min(xInterval, yInterval) * 1.18;
+const janggiViewBox = { minX: -0.55, minY: -0.55, width: 9.1, height: 10.1 };
 
+function JanggiBoard({ state, role, turn, onMove, selected, setSelected, overlays }) {
   const handlePoint = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
@@ -569,22 +565,20 @@ function JanggiBoard({ state, voteSummary, role, turn, onMove, selected, setSele
 
   return (
     <div className="board-wrap janggi">
-      <div className="board janggi intersection-board">
-        <svg className="board-lines janggi-lines" viewBox="0 0 100 100" aria-hidden="true">
-          {Array.from({ length: size.cols }).map((_, col) => {
-            const x = pad + col * xInterval;
-            return <line key={`v-${col}`} x1={x} y1={pad} x2={x} y2={100 - pad} />;
-          })}
-          {Array.from({ length: size.rows }).map((_, row) => {
-            const y = pad + row * yInterval;
-            return <line key={`h-${row}`} x1={pad} y1={y} x2={100 - pad} y2={y} />;
-          })}
-          <PalaceLines pad={pad} xInterval={xInterval} yInterval={yInterval} topRow={0} />
-          <PalaceLines pad={pad} xInterval={xInterval} yInterval={yInterval} topRow={7} />
+      <div className="board janggi-board">
+        <svg className="janggi-canvas" viewBox={`${janggiViewBox.minX} ${janggiViewBox.minY} ${janggiViewBox.width} ${janggiViewBox.height}`} aria-hidden="true">
+          {Array.from({ length: 9 }).map((_, col) => (
+            <line key={`v-${col}`} x1={col} y1={0} x2={col} y2={9} />
+          ))}
+          {Array.from({ length: 10 }).map((_, row) => (
+            <line key={`h-${row}`} x1={0} y1={row} x2={8} y2={row} />
+          ))}
+          <JanggiPalace topRow={0} />
+          <JanggiPalace topRow={7} />
         </svg>
 
-        {Array.from({ length: size.rows }).map((_, row) =>
-          Array.from({ length: size.cols }).map((_, col) => {
+        {Array.from({ length: 10 }).map((_, row) =>
+          Array.from({ length: 9 }).map((_, col) => {
             const piece = state?.board?.[row]?.[col] || null;
             const vote = overlays.get(`${row}:${col}`);
             const last = lastMoveAt(state?.lastMove, row, col);
@@ -592,13 +586,8 @@ function JanggiBoard({ state, voteSummary, role, turn, onMove, selected, setSele
             return (
               <button
                 key={`${row}-${col}`}
-                className={`point-cell janggi-point ${last ? "last" : ""} ${isSelected ? "selected" : ""}`}
-                style={{
-                  left: `${pad + col * xInterval}%`,
-                  top: `${pad + row * yInterval}%`,
-                  width: `${pointSize}%`,
-                  aspectRatio: "1",
-                }}
+                className={`janggi-point ${last ? "last" : ""} ${isSelected ? "selected" : ""}`}
+                style={janggiPointStyle(row, col)}
                 onClick={() => handlePoint(row, col)}
                 title={`${row + 1}, ${col + 1}`}
               >
@@ -614,17 +603,20 @@ function JanggiBoard({ state, voteSummary, role, turn, onMove, selected, setSele
   );
 }
 
-function PalaceLines({ pad, xInterval, yInterval, topRow }) {
-  const left = pad + 3 * xInterval;
-  const right = pad + 5 * xInterval;
-  const top = pad + topRow * yInterval;
-  const bottom = pad + (topRow + 2) * yInterval;
+function JanggiPalace({ topRow }) {
   return (
     <>
-      <line className="palace-line" x1={left} y1={top} x2={right} y2={bottom} />
-      <line className="palace-line" x1={right} y1={top} x2={left} y2={bottom} />
+      <line className="palace-line" x1={3} y1={topRow} x2={5} y2={topRow + 2} />
+      <line className="palace-line" x1={5} y1={topRow} x2={3} y2={topRow + 2} />
     </>
   );
+}
+
+function janggiPointStyle(row, col) {
+  return {
+    left: `${((col - janggiViewBox.minX) / janggiViewBox.width) * 100}%`,
+    top: `${((row - janggiViewBox.minY) / janggiViewBox.height) * 100}%`,
+  };
 }
 
 function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {

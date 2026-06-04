@@ -281,23 +281,32 @@ legend {
   fill: rgba(45, 31, 15, 0.86);
 }
 
-.board.janggi {
-  aspect-ratio: 9 / 10;
+.janggi-board {
   display: block;
+  aspect-ratio: 9.1 / 10.1;
+  overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 36%),
-    linear-gradient(90deg, rgba(84, 45, 18, 0.1), rgba(255, 223, 150, 0.08), rgba(84, 45, 18, 0.1)),
-    #cda769;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 34%),
+    linear-gradient(90deg, rgba(83, 47, 20, 0.12), rgba(255, 226, 154, 0.08), rgba(83, 47, 20, 0.12)),
+    #d0aa6d;
   border-color: #5b371d;
 }
 
-.janggi-lines line {
-  stroke: rgba(54, 29, 14, 0.9);
-  stroke-width: 1.45;
+.janggi-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 
-.janggi-lines .palace-line {
-  stroke-width: 1.7;
+.janggi-canvas line {
+  stroke: rgba(55, 31, 15, 0.9);
+  stroke-width: 0.026;
+  vector-effect: non-scaling-stroke;
+}
+
+.janggi-canvas .palace-line {
+  stroke-width: 0.032;
 }
 
 .board.chess {
@@ -339,7 +348,24 @@ legend {
 }
 
 .janggi-point {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: clamp(42px, 8.1%, 70px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 0;
   border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.janggi-point:hover,
+.janggi-point.selected {
+  outline: 3px solid rgba(125, 176, 255, 0.82);
+  outline-offset: 3px;
 }
 
 .baduk .cell {
@@ -384,7 +410,8 @@ legend {
 }
 
 .cell.last::after,
-.point-cell.last::after {
+.point-cell.last::after,
+.janggi-point.last::after {
   content: "";
   position: absolute;
   inset: 32%;
@@ -413,17 +440,18 @@ legend {
 }
 
 .janggi-piece {
-  width: 78%;
+  width: 100%;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
   border: 2px solid #8c4f25;
   border-radius: 50%;
-  background: #efcf92;
+  background: radial-gradient(circle at 35% 28%, #ffe2a7, #efc57d 72%);
   font-family: "Malgun Gothic", serif;
   font-weight: 800;
-  font-size: clamp(13px, 2.8vw, 30px);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  font-size: clamp(22px, 4.1vw, 42px);
+  line-height: 1;
+  box-shadow: inset -2px -4px 9px rgba(122, 67, 24, 0.22), 0 3px 7px rgba(0, 0, 0, 0.32);
 }
 
 .janggi-piece.black {
