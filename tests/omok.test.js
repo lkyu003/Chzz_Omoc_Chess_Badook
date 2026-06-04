@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyOmokMove, createOmokState, isLegalOmokMove } from "../src/shared/omok.js";
+import { applyOmokMove, createOmokState, isLegalOmokMove, skipOmokTurn } from "../src/shared/omok.js";
 import { createVoteState, recordVote, summarizeVotes, winningVote } from "../src/shared/votes.js";
 
 test("omok rejects occupied intersections and detects five in a row", () => {
@@ -62,6 +62,14 @@ test("renju rules reject black double-fours", () => {
   const result = applyOmokMove(state, { game: "omok", row: 7, col: 7 });
   assert.equal(result.ok, false);
   assert.equal(result.reason, "illegal_move");
+});
+
+test("omok timeout skips advance stone color", () => {
+  let state = createOmokState();
+  state = skipOmokTurn(state, "timeout").state;
+  assert.equal(state.nextStone, "white");
+  state = skipOmokTurn(state, "timeout").state;
+  assert.equal(state.nextStone, "black");
 });
 
 test("vote aggregation keeps latest vote per viewer and calculates percentages", () => {

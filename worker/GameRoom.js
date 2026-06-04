@@ -1,4 +1,4 @@
-import { createInitialGameState, applyGameMove, isLegalGameMove } from "../src/shared/gameRules.js";
+import { createInitialGameState, applyGameMove, isLegalGameMove, skipGameTurn } from "../src/shared/gameRules.js";
 import { JANGGI_SETUP_VERSION } from "../src/shared/janggi.js";
 import { createOmokState } from "../src/shared/omok.js";
 import { normalizePassword } from "../src/shared/password.js";
@@ -342,8 +342,14 @@ export class GameRoom {
       this.scheduleVoteBroadcast(true);
       this.turnTimer = setTimeout(() => this.finishViewerTurn(this.room.turn.id), seconds * 1000);
     } else {
-      this.turnTimer = setTimeout(() => this.startTurn("viewers"), seconds * 1000);
+      this.turnTimer = setTimeout(() => this.finishStreamerTurn(this.room.turn.id), seconds * 1000);
     }
+  }
+
+  finishStreamerTurn(turnId) {
+    if (this.room.turn?.id !== turnId || this.room.turn.side !== "streamer") return;
+    this.skipCurrentGameTurn("streamer_timeout");
+    this.startTurn("viewers");
   }
 
   finishViewerTurn(turnId) {
@@ -353,7 +359,17 @@ export class GameRoom {
       this.commitMove(winner.move, "viewers");
       return;
     }
+    this.skipCurrentGameTurn("viewer_timeout");
     this.startTurn("streamer");
+  }
+
+  skipCurrentGameTurn(reason) {
+    const result = skipGameTurn(this.room.gameState, reason);
+    if (!result.ok) return false;
+    this.room.gameState = result.state;
+    this.room.moveLog.push({ pass: true, reason, at: Date.now() });
+    this.broadcast({ type: "room_snapshot", state: this.publicState() });
+    return true;
   }
 
   commitMove(move, by) {

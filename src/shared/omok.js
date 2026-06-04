@@ -62,6 +62,16 @@ export function applyOmokMove(state, move) {
   return { ok: true, state: next, stone };
 }
 
+export function skipOmokTurn(state, reason = "timeout") {
+  if (state?.game !== "omok" || state.winner) return { ok: false, state, reason: "illegal_skip" };
+  const next = cloneOmokState(state);
+  const stone = next.nextStone;
+  next.moveNumber += 1;
+  next.lastMove = { game: "omok", pass: true, reason, stone, moveNumber: next.moveNumber };
+  next.nextStone = stone === "black" ? "white" : "black";
+  return { ok: true, state: next, stone };
+}
+
 export function hasFiveInRow(board, row, col, stone) {
   return lineLengths(board, row, col, stone).some((count) => count >= 5);
 }

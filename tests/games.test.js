@@ -3,6 +3,7 @@ import test from "node:test";
 import { applyBadukMove, createBadukState, isLegalBadukMove } from "../src/shared/baduk.js";
 import { applyChessMove, createChessState, isLegalChessMove } from "../src/shared/chessGame.js";
 import { applyJanggiMove, createJanggiState, isLegalJanggiMove } from "../src/shared/janggi.js";
+import { skipGameTurn } from "../src/shared/gameRules.js";
 import { normalizePassword } from "../src/shared/password.js";
 import { createVoteState, recordVote, winningVote } from "../src/shared/votes.js";
 
@@ -78,6 +79,26 @@ test("janggi validates simple soldier and chariot moves", () => {
   state.board[8][4] = state.board[7][7];
   state.board[7][7] = null;
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 7, col: 3 }, to: { row: 9, col: 5 } }), false);
+});
+
+test("timeout skips advance the game-side turn", () => {
+  let baduk = createBadukState();
+  baduk = skipGameTurn(baduk, "timeout").state;
+  assert.equal(baduk.nextStone, "white");
+  baduk = skipGameTurn(baduk, "timeout").state;
+  assert.equal(baduk.nextStone, "black");
+
+  let chess = createChessState();
+  chess = skipGameTurn(chess, "timeout").state;
+  assert.equal(chess.nextSide, "black");
+  chess = skipGameTurn(chess, "timeout").state;
+  assert.equal(chess.nextSide, "white");
+
+  let janggi = createJanggiState();
+  janggi = skipGameTurn(janggi, "timeout").state;
+  assert.equal(janggi.nextSide, "white");
+  janggi = skipGameTurn(janggi, "timeout").state;
+  assert.equal(janggi.nextSide, "black");
 });
 
 test("password normalization lowercases and maps Korean keyboard input", () => {

@@ -28,6 +28,29 @@ export function applyChessMove(state, move) {
   }
 }
 
+export function skipChessTurn(state, reason = "timeout") {
+  if (state?.game !== "chess" || state.winner) return { ok: false, state, reason: "illegal_skip" };
+  try {
+    const parts = state.fen.split(" ");
+    const skipped = parts[1] === "b" ? "black" : "white";
+    parts[1] = parts[1] === "b" ? "w" : "b";
+    parts[3] = "-";
+    parts[4] = String((Number(parts[4]) || 0) + 1);
+    if (skipped === "black") parts[5] = String((Number(parts[5]) || 1) + 1);
+    const chess = new Chess(parts.join(" "));
+    return {
+      ok: true,
+      state: {
+        ...fromChess(chess, { game: "chess", pass: true, reason, side: skipped, moveNumber: state.moveNumber + 1 }),
+        moveNumber: state.moveNumber + 1,
+      },
+      side: skipped,
+    };
+  } catch {
+    return { ok: false, state, reason: "illegal_skip" };
+  }
+}
+
 function fromChess(chess, lastMove) {
   const board = chess.board().map((row) =>
     row.map((piece) => {

@@ -23,6 +23,12 @@ export function applyBadukMove(state, move) {
   return simulateBadukMove(state, move);
 }
 
+export function skipBadukTurn(state, reason = "timeout") {
+  const result = simulateBadukMove(state, { game: "baduk", pass: true });
+  if (result.ok) result.state.lastMove.reason = reason;
+  return result;
+}
+
 function simulateBadukMove(state, move) {
   if (move?.pass) {
     const next = cloneState(state);

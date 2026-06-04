@@ -64,6 +64,16 @@ export function applyJanggiMove(state, move) {
   return { ok: true, state: next, piece: moving };
 }
 
+export function skipJanggiTurn(state, reason = "timeout") {
+  if (state?.game !== "janggi" || state.winner) return { ok: false, state, reason: "illegal_skip" };
+  const next = cloneState(state);
+  const side = next.nextSide;
+  next.moveNumber += 1;
+  next.lastMove = { game: "janggi", pass: true, reason, side, moveNumber: next.moveNumber };
+  next.nextSide = opponent(side);
+  return { ok: true, state: next, side };
+}
+
 function placeSide(board, side, backRow, generalRow, cannonRow, soldierRow) {
   const backRank = ["cha", "ma", "sang", "sa", null, "sa", "sang", "ma", "cha"];
   for (let col = 0; col < JANGGI_COLS; col += 1) {
