@@ -194,13 +194,21 @@ legend {
 
 .error-line {
   margin: 12px 0 0;
-  color: #ffb4a8;
+  color: #d95770;
+  font-weight: 850;
 }
 
 .game-shell {
   min-height: 100vh;
   padding: 16px;
-  background: #111417;
+  color: #304263;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(255, 238, 161, 0.48), transparent 18%),
+    radial-gradient(circle at 86% 10%, rgba(255, 202, 232, 0.42), transparent 22%),
+    radial-gradient(circle at 50% 86%, rgba(160, 199, 255, 0.32), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7) 25%, transparent 25%) 0 0 / 34px 34px,
+    linear-gradient(135deg, transparent 75%, rgba(205, 224, 255, 0.34) 75%) 0 0 / 34px 34px,
+    linear-gradient(180deg, #f8fbff 0%, #eaf4ff 54%, #f8f0ff 100%);
 }
 
 .topbar {
@@ -208,18 +216,21 @@ legend {
   gap: 16px;
   min-height: 64px;
   padding: 12px 14px;
-  border: 1px solid #2f3942;
-  border-radius: 8px;
-  background: #1a1f24;
+  border: 1px solid rgba(142, 174, 232, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 16px 42px rgba(91, 121, 190, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(14px);
 }
 
 .topbar strong {
   display: block;
   font-size: 22px;
+  color: #496ca9;
 }
 
 .topbar span {
-  color: #aeb8c2;
+  color: #6f7fa5;
 }
 
 .topbar-actions {
@@ -235,8 +246,10 @@ legend {
 
 .danger {
   padding: 0 14px;
-  border-color: #8a3c38;
-  background: #4a2424;
+  border-color: rgba(245, 146, 157, 0.78);
+  color: #b44b62;
+  background: linear-gradient(180deg, #fff8fb, #ffe7ee);
+  box-shadow: 0 6px 16px rgba(220, 100, 128, 0.18);
 }
 
 .game-layout {
@@ -588,8 +601,10 @@ legend {
   width: min(78vh, 100%);
   max-width: 860px;
   margin-top: 10px;
-  color: #aeb8c2;
+  color: #6f7fa5;
   text-align: center;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .turn-clock-bar {
@@ -605,12 +620,14 @@ legend {
   align-items: center;
   gap: 12px;
   min-height: 72px;
-  border: 1px solid #313c45;
-  border-radius: 8px;
+  border: 1px solid rgba(142, 174, 232, 0.62);
+  border-radius: 16px;
   padding: 12px;
-  color: #9aa6b2;
-  background: #171c20;
-  opacity: 0.68;
+  color: #6f7fa5;
+  background: rgba(255, 255, 255, 0.72);
+  opacity: 0.78;
+  box-shadow: 0 10px 26px rgba(91, 121, 190, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(10px);
 }
 
 .turn-clock.viewers {
@@ -620,10 +637,10 @@ legend {
 
 .turn-clock.active {
   opacity: 1;
-  border-color: #7db0ff;
-  color: #eef7ff;
-  background: #162942;
-  box-shadow: 0 0 0 2px rgba(125, 176, 255, 0.16), 0 12px 34px rgba(0, 0, 0, 0.22);
+  border-color: #88aef6;
+  color: #ffffff;
+  background: linear-gradient(135deg, #76b8ff, #a9b6ff 52%, #e0a7ee);
+  box-shadow: 0 0 0 2px rgba(136, 174, 246, 0.2), 0 14px 34px rgba(113, 151, 231, 0.28);
 }
 
 .turn-clock strong,
@@ -657,29 +674,31 @@ legend {
   text-align: center;
   letter-spacing: 0;
   color: #10171d;
-  background: #7db0ff;
+  background: #9fc8ff;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(77, 104, 174, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.34);
 }
 
 .turn-icon.black-team {
   color: #f4f7f8;
   background: #15191d;
-  border: 1px solid #5d6972;
+  border: 1px solid rgba(120, 135, 150, 0.7);
 }
 
 .turn-icon.white-team {
   color: #161a1d;
   background: #f1eee6;
+  border: 1px solid rgba(161, 166, 176, 0.58);
 }
 
 .turn-icon.blue-team {
   color: #eef5ff;
-  background: #1f55a8;
+  background: #3d79d9;
 }
 
 .turn-icon.red-team {
   color: #fff3f1;
-  background: #a8302d;
+  background: #d95770;
 }
 
 .pip-body {
@@ -779,10 +798,18 @@ legend {
 .side-panel {
   grid-column: 3;
   width: 100%;
-  border: 1px solid #2f3942;
-  border-radius: 8px;
+  border: 1px solid rgba(142, 174, 232, 0.66);
+  border-radius: 18px;
   padding: 16px;
-  background: #1a1f24;
+  color: #304263;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 16px 42px rgba(91, 121, 190, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+}
+
+.side-panel h2 {
+  color: #496ca9;
+  font-weight: 900;
 }
 
 .vote-list {
@@ -797,15 +824,25 @@ legend {
   justify-content: space-between;
   gap: 10px;
   padding: 10px;
-  border-radius: 6px;
-  background: #12161a;
+  border: 1px solid rgba(144, 176, 234, 0.38);
+  border-radius: 12px;
+  color: #4f628f;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(235, 244, 255, 0.82));
+  box-shadow: 0 6px 16px rgba(105, 137, 202, 0.12);
+}
+
+.vote-list strong {
+  color: #496ca9;
 }
 
 .winner {
   padding: 12px;
-  border-radius: 6px;
-  background: #244932;
-  color: #bff3cc;
+  border: 1px solid rgba(126, 184, 255, 0.6);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff3a7, #ffd5ec 48%, #bfe8ff);
+  color: #496ca9;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(113, 151, 231, 0.2);
 }
 
 .victory-overlay {
@@ -817,7 +854,8 @@ legend {
   padding: 24px;
   width: 100%;
   border: 0;
-  background: rgba(7, 10, 13, 0.34);
+  background: rgba(111, 127, 165, 0.28);
+  backdrop-filter: blur(4px);
   cursor: pointer;
 }
 
@@ -862,18 +900,21 @@ legend {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(7, 10, 13, 0.72);
+  background: rgba(111, 127, 165, 0.34);
+  backdrop-filter: blur(8px);
 }
 
 .setup-modal {
   width: min(560px, 100%);
   display: grid;
   gap: 14px;
-  border: 1px solid #3d4a54;
-  border-radius: 8px;
+  border: 1px solid rgba(142, 174, 232, 0.72);
+  border-radius: 22px;
   padding: 18px;
-  background: #1b2025;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  color: #304263;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 24px 80px rgba(91, 121, 190, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px);
 }
 
 .modal-title-row,
@@ -886,6 +927,8 @@ legend {
 
 .modal-title-row h2 {
   margin-bottom: 0;
+  color: #496ca9;
+  font-weight: 900;
 }
 
 .modal-actions {
