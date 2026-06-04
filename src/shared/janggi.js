@@ -122,15 +122,15 @@ function rookLineOk(board, from, to) {
 function cannonLineOk(board, from, to, target) {
   if (target?.type === "po") return false;
   if (isStraight(to.row - from.row, to.col - from.col)) return cannonPathOk(board, from, to);
-  return palaceDiagonalLine(from, to) && cannonDiagonalPathOk(board, from, to);
+  return palaceOppositeCornerLine(from, to) && cannonPathOk(board, from, to);
 }
 
 function cannonPathOk(board, from, to) {
-  let screens = 0;
+  const screens = [];
   for (const [row, col] of pointsBetween(from, to)) {
-    if (board[row][col]) screens += 1;
+    if (board[row][col]) screens.push(board[row][col]);
   }
-  return screens === 1;
+  return screens.length === 1 && screens[0].type !== "po";
 }
 
 function clearDiagonalPath(board, from, to) {
@@ -138,14 +138,6 @@ function clearDiagonalPath(board, from, to) {
     if (board[row][col]) return false;
   }
   return true;
-}
-
-function cannonDiagonalPathOk(board, from, to) {
-  let screens = 0;
-  for (const [row, col] of pointsBetween(from, to)) {
-    if (board[row][col]) screens += 1;
-  }
-  return screens === 1;
 }
 
 function pointsBetween(from, to) {
@@ -180,15 +172,11 @@ function palaceAny(pos) {
 }
 
 function palaceStepOk(from, to) {
-  const dr = Math.abs(to.row - from.row);
-  const dc = Math.abs(to.col - from.col);
-  if (!palaceAny(from) || !palaceAny(to)) return false;
-  if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) return true;
-  return dr === 1 && dc === 1 && palaceDiagonalStep(from, to);
+  return palaceLineSegment(from, to);
 }
 
 function palaceDiagonalStep(from, to) {
-  return palaceDiagonalLine(from, to) && Math.abs(to.row - from.row) === 1;
+  return palaceLineSegment(from, to) && Math.abs(to.row - from.row) === 1 && Math.abs(to.col - from.col) === 1;
 }
 
 function palaceDiagonalLine(from, to) {
@@ -207,12 +195,42 @@ function palaceDiagonalLine(from, to) {
   return mainDiagonal || antiDiagonal;
 }
 
+function palaceOppositeCornerLine(from, to) {
+  if (!palaceDiagonalLine(from, to)) return false;
+  return Math.abs(to.row - from.row) === 2 && Math.abs(to.col - from.col) === 2;
+}
+
+function palaceLineSegment(from, to) {
+  if (!samePalace(from, to)) return false;
+  const dr = Math.abs(to.row - from.row);
+  const dc = Math.abs(to.col - from.col);
+  if (dr + dc === 1) return true;
+  if (dr !== 1 || dc !== 1) return false;
+
+  const topRow = from.row <= 2 ? 0 : 7;
+  const fromLocal = `${from.row - topRow}:${from.col - 3}`;
+  const toLocal = `${to.row - topRow}:${to.col - 3}`;
+  const edge = [fromLocal, toLocal].sort().join(">");
+  return palaceDiagonalEdges.has(edge);
+}
+
+const palaceDiagonalEdges = new Set(["0:0>1:1", "1:1>2:2", "0:2>1:1", "1:1>2:0"]);
+
+function samePalace(from, to) {
+  if (!palaceAny(from) || !palaceAny(to)) return false;
+  return (from.row <= 2 && to.row <= 2) || (from.row >= 7 && to.row >= 7);
+}
+
 function soldierOk(side, from, to) {
   const dr = to.row - from.row;
   const dc = to.col - from.col;
   const forward = side === "black" ? -1 : 1;
   if ((dr === forward && dc === 0) || (dr === 0 && Math.abs(dc) === 1)) return true;
-  return dr === forward && Math.abs(dc) === 1 && palaceDiagonalStep(from, to);
+  return dr === forward && Math.abs(dc) === 1 && enemyPalace(side, from) && enemyPalace(side, to) && palaceDiagonalStep(from, to);
+}
+
+function enemyPalace(side, pos) {
+  return side === "black" ? pos.row >= 0 && pos.row <= 2 && pos.col >= 3 && pos.col <= 5 : pos.row >= 7 && pos.row <= 9 && pos.col >= 3 && pos.col <= 5;
 }
 
 function opponent(side) {

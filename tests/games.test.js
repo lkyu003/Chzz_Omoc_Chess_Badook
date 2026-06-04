@@ -46,6 +46,21 @@ test("janggi validates simple soldier and chariot moves", () => {
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 3, col: 0 }, to: { row: 4, col: 0 } }), true);
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 0, col: 0 }, to: { row: 4, col: 0 } }), false);
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 1, col: 4 }, to: { row: 2, col: 3 } }), true);
+
+  state = createJanggiState();
+  state.board[7][4] = state.board[8][4];
+  state.board[8][4] = null;
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 7, col: 4 }, to: { row: 8, col: 5 } }), false);
+
+  state = createJanggiState();
+  state.board[7][3] = state.board[7][1];
+  state.board[7][1] = null;
+  state.board[9][5] = null;
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 7, col: 3 }, to: { row: 9, col: 5 } }), true);
+
+  state.board[8][4] = state.board[7][7];
+  state.board[7][7] = null;
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 7, col: 3 }, to: { row: 9, col: 5 } }), false);
 });
 
 test("password normalization lowercases and maps Korean keyboard input", () => {
