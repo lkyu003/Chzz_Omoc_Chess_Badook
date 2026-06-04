@@ -69,6 +69,20 @@ test("chess allows non-check-resolving moves while in check", () => {
   assert.equal(result.state.nextSide, "black");
 });
 
+test("chess declares a winner when a king is captured", () => {
+  const state = {
+    ...createChessState(),
+    fen: "4k3/8/8/8/8/8/4Q3/4K3 w - - 0 1",
+    nextSide: "white",
+  };
+  const result = applyChessMove(state, { game: "chess", from: { row: 6, col: 4 }, to: { row: 0, col: 4 } });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.winner, "white");
+  assert.equal(result.state.isDraw, false);
+  assert.equal(result.state.isCheck, false);
+});
+
 test("janggi validates simple soldier and chariot moves", () => {
   let state = createJanggiState();
   assert.equal(state.setupVersion, 3);

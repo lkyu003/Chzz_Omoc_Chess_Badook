@@ -61,6 +61,7 @@ function fromChess(chess, lastMove, moveNumber = 0) {
       };
     }),
   );
+  const winner = winnerFromCapturedKing(board) || (chess.isCheckmate() ? (chess.turn() === "b" ? "white" : "black") : null);
 
   return {
     game: "chess",
@@ -70,10 +71,19 @@ function fromChess(chess, lastMove, moveNumber = 0) {
     nextSide: chess.turn() === "b" ? "black" : "white",
     moveNumber,
     lastMove,
-    winner: chess.isCheckmate() ? (chess.turn() === "b" ? "white" : "black") : null,
-    isCheck: chess.isCheck(),
-    isDraw: chess.isDraw(),
+    winner,
+    isCheck: winner ? false : chess.isCheck(),
+    isDraw: winner ? false : chess.isDraw(),
   };
+}
+
+function winnerFromCapturedKing(board) {
+  const pieces = board.flat().filter(Boolean);
+  const hasWhiteKing = pieces.some((piece) => piece.type === "k" && piece.side === "white");
+  const hasBlackKing = pieces.some((piece) => piece.type === "k" && piece.side === "black");
+  if (!hasWhiteKing) return "black";
+  if (!hasBlackKing) return "white";
+  return null;
 }
 
 function findPseudoLegalMove(chess, move) {
