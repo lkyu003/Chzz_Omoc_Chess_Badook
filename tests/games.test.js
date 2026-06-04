@@ -3,9 +3,11 @@ import test from "node:test";
 import { applyBadukMove, createBadukState, isLegalBadukMove } from "../src/shared/baduk.js";
 import { applyChessMove, createChessState, isLegalChessMove } from "../src/shared/chessGame.js";
 import { applyJanggiMove, createJanggiState, isLegalJanggiMove } from "../src/shared/janggi.js";
+import { createOmokState } from "../src/shared/omok.js";
 import { skipGameTurn } from "../src/shared/gameRules.js";
 import { normalizePassword } from "../src/shared/password.js";
 import { createVoteState, recordVote, winningVote } from "../src/shared/votes.js";
+import { roleForNextGameTurn } from "../worker/GameRoom.js";
 
 test("baduk captures surrounded stones and rejects occupied points", () => {
   let state = createBadukState();
@@ -33,6 +35,23 @@ test("chess accepts legal moves and rejects illegal moves", () => {
   state = legal.state;
   assert.equal(state.board[4][4].type, "p");
   assert.equal(isLegalChessMove(state, { game: "chess", from: { row: 7, col: 4 }, to: { row: 5, col: 4 } }), false);
+});
+
+test("chess move numbers keep increasing after FEN reloads", () => {
+  let state = createChessState();
+  const moves = [
+    { from: { row: 6, col: 4 }, to: { row: 4, col: 4 } },
+    { from: { row: 1, col: 4 }, to: { row: 3, col: 4 } },
+    { from: { row: 7, col: 6 }, to: { row: 5, col: 5 } },
+    { from: { row: 0, col: 1 }, to: { row: 2, col: 2 } },
+  ];
+
+  moves.forEach((move, index) => {
+    const result = applyChessMove(state, { game: "chess", ...move });
+    assert.equal(result.ok, true);
+    state = result.state;
+    assert.equal(state.moveNumber, index + 1);
+  });
 });
 
 test("janggi validates simple soldier and chariot moves", () => {
@@ -99,6 +118,25 @@ test("timeout skips advance the game-side turn", () => {
   assert.equal(janggi.nextSide, "white");
   janggi = skipGameTurn(janggi, "timeout").state;
   assert.equal(janggi.nextSide, "black");
+});
+
+test("next game side maps to the correct player role for every game", () => {
+  assert.equal(roleForNextGameTurn("omok", createOmokState()), "streamer");
+
+  let baduk = createBadukState();
+  assert.equal(roleForNextGameTurn("baduk", baduk), "streamer");
+  baduk = skipGameTurn(baduk, "timeout").state;
+  assert.equal(roleForNextGameTurn("baduk", baduk), "viewers");
+
+  let janggi = createJanggiState();
+  assert.equal(roleForNextGameTurn("janggi", janggi), "streamer");
+  janggi = skipGameTurn(janggi, "timeout").state;
+  assert.equal(roleForNextGameTurn("janggi", janggi), "viewers");
+
+  let chess = createChessState();
+  assert.equal(roleForNextGameTurn("chess", chess), "streamer");
+  chess = skipGameTurn(chess, "timeout").state;
+  assert.equal(roleForNextGameTurn("chess", chess), "viewers");
 });
 
 test("password normalization lowercases and maps Korean keyboard input", () => {

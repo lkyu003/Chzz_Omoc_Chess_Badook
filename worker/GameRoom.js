@@ -349,7 +349,7 @@ export class GameRoom {
   finishStreamerTurn(turnId) {
     if (this.room.turn?.id !== turnId || this.room.turn.side !== "streamer") return;
     this.skipCurrentGameTurn("streamer_timeout");
-    this.startTurn("viewers");
+    this.startNextGameTurn();
   }
 
   finishViewerTurn(turnId) {
@@ -360,7 +360,7 @@ export class GameRoom {
       return;
     }
     this.skipCurrentGameTurn("viewer_timeout");
-    this.startTurn("streamer");
+    this.startNextGameTurn();
   }
 
   skipCurrentGameTurn(reason) {
@@ -368,6 +368,10 @@ export class GameRoom {
     if (!result.ok) return false;
     this.room.gameState = result.state;
     this.room.moveLog.push({ pass: true, reason, at: Date.now() });
+    if (isTerminalGameState(this.room.gameState)) {
+      clearTimeout(this.turnTimer);
+      this.room.turn = null;
+    }
     this.broadcast({ type: "room_snapshot", state: this.publicState() });
     return true;
   }
@@ -382,16 +386,31 @@ export class GameRoom {
 
     this.room.gameState = result.state;
     this.room.moveLog.push({ move, by, at: Date.now() });
-    this.broadcast({ type: "move_committed", move, state: this.publicState() });
 
-    if (this.room.gameState.winner) {
+    if (isTerminalGameState(this.room.gameState)) {
       clearTimeout(this.turnTimer);
       this.room.turn = null;
+    }
+
+    this.broadcast({ type: "move_committed", move, state: this.publicState() });
+
+    if (isTerminalGameState(this.room.gameState)) {
       return true;
     }
 
-    this.startTurn(by === "streamer" ? "viewers" : "streamer");
+    this.startNextGameTurn();
     return true;
+  }
+
+  startNextGameTurn() {
+    if (isTerminalGameState(this.room.gameState)) {
+      clearTimeout(this.turnTimer);
+      this.room.turn = null;
+      this.broadcast({ type: "room_snapshot", state: this.publicState() });
+      return;
+    }
+
+    this.startTurn(roleForNextGameTurn(this.room.game, this.room.gameState));
   }
 
   scheduleVoteBroadcast(immediate = false) {
@@ -546,6 +565,16 @@ function emptyRoom() {
 
 function isSupportedGame(game) {
   return ["omok", "baduk", "janggi", "chess"].includes(game);
+}
+
+export function roleForNextGameTurn(game, gameState) {
+  const nextSide = game === "omok" || game === "baduk" ? gameState?.nextStone : gameState?.nextSide;
+  if (game === "chess") return nextSide === "white" ? "streamer" : "viewers";
+  return nextSide === "black" ? "streamer" : "viewers";
+}
+
+export function isTerminalGameState(gameState) {
+  return Boolean(gameState?.winner || gameState?.isDraw);
 }
 
 function clampSeconds(value) {

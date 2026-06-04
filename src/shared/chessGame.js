@@ -2,7 +2,7 @@ import { Chess } from "chess.js";
 
 export function createChessState() {
   const chess = new Chess();
-  return fromChess(chess, null);
+  return fromChess(chess, null, 0);
 }
 
 export function isLegalChessMove(state, move) {
@@ -22,7 +22,7 @@ export function applyChessMove(state, move) {
       promotion: move.promotion || "q",
     });
     if (!result) return { ok: false, state, reason: "illegal_move" };
-    return { ok: true, state: fromChess(chess, move), move: result };
+    return { ok: true, state: fromChess(chess, move, (state.moveNumber || 0) + 1), move: result };
   } catch {
     return { ok: false, state, reason: "illegal_move" };
   }
@@ -41,8 +41,8 @@ export function skipChessTurn(state, reason = "timeout") {
     return {
       ok: true,
       state: {
-        ...fromChess(chess, { game: "chess", pass: true, reason, side: skipped, moveNumber: state.moveNumber + 1 }),
-        moveNumber: state.moveNumber + 1,
+        ...fromChess(chess, { game: "chess", pass: true, reason, side: skipped, moveNumber: (state.moveNumber || 0) + 1 }, (state.moveNumber || 0) + 1),
+        moveNumber: (state.moveNumber || 0) + 1,
       },
       side: skipped,
     };
@@ -51,7 +51,7 @@ export function skipChessTurn(state, reason = "timeout") {
   }
 }
 
-function fromChess(chess, lastMove) {
+function fromChess(chess, lastMove, moveNumber = 0) {
   const board = chess.board().map((row) =>
     row.map((piece) => {
       if (!piece) return null;
@@ -70,7 +70,7 @@ function fromChess(chess, lastMove) {
     board,
     fen: chess.fen(),
     nextSide: chess.turn() === "b" ? "black" : "white",
-    moveNumber: chess.history().length,
+    moveNumber,
     lastMove,
     winner: chess.isCheckmate() ? (chess.turn() === "b" ? "white" : "black") : null,
     isCheck: chess.isCheck(),
