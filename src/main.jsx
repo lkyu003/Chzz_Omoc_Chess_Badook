@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { isLegalChessMove } from "./shared/chessGame.js";
+import { isLegalJanggiMove } from "./shared/janggi.js";
 import { normalizePassword } from "./shared/password.js";
 import { createMoveAudio } from "./sound/moveAudio.js";
 import "./styles.css";
@@ -492,6 +494,8 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
     setSelected(null);
   }, [game, state?.moveNumber, turn?.id]);
 
+  const legalDestinations = useMemo(() => moveDestinations(game, state, selected), [game, state, selected]);
+
   if (game === "omok" || game === "baduk") {
     return <IntersectionBoard game={game} state={state} voteSummary={voteSummary} role={role} turn={turn} onMove={onMove} />;
   }
@@ -503,11 +507,15 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
   const handleCell = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
-    if (!selected && piece?.side === currentSide) {
+    if (selected?.row === row && selected?.col === col) {
+      setSelected(null);
+      return;
+    }
+    if (piece?.side === currentSide) {
       setSelected({ row, col });
       return;
     }
-    if (selected) {
+    if (selected && legalDestinations.has(`${row}:${col}`)) {
       onMove({ game, from: selected, to: { row, col }, promotion: "q" });
       setSelected(null);
       return;
@@ -524,10 +532,11 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
             const vote = overlays.get(`${row}:${col}`);
             const last = lastMoveAt(state?.lastMove, row, col);
             const isSelected = selected?.row === row && selected?.col === col;
+            const isDestination = legalDestinations.has(`${row}:${col}`);
             return (
               <button
                 key={`${row}-${col}`}
-                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""} ${isSelected ? "selected" : ""}`}
+                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""} ${isSelected ? "selected" : ""} ${isDestination ? "legal-destination" : ""} ${isDestination && piece ? "capture-destination" : ""}`}
                 onClick={() => handleCell(row, col)}
                 title={`${row + 1}, ${col + 1}`}
               >
@@ -548,14 +557,20 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
 const janggiViewBox = { minX: -0.55, minY: -0.55, width: 9.1, height: 10.1 };
 
 function JanggiBoard({ state, role, turn, onMove, selected, setSelected, overlays }) {
+  const legalDestinations = useMemo(() => moveDestinations("janggi", state, selected), [state, selected]);
+
   const handlePoint = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
-    if (!selected && piece?.side === currentSide) {
+    if (selected?.row === row && selected?.col === col) {
+      setSelected(null);
+      return;
+    }
+    if (piece?.side === currentSide) {
       setSelected({ row, col });
       return;
     }
-    if (selected) {
+    if (selected && legalDestinations.has(`${row}:${col}`)) {
       onMove({ game: "janggi", from: selected, to: { row, col } });
       setSelected(null);
       return;
@@ -583,10 +598,11 @@ function JanggiBoard({ state, role, turn, onMove, selected, setSelected, overlay
             const vote = overlays.get(`${row}:${col}`);
             const last = lastMoveAt(state?.lastMove, row, col);
             const isSelected = selected?.row === row && selected?.col === col;
+            const isDestination = legalDestinations.has(`${row}:${col}`);
             return (
               <button
                 key={`${row}-${col}`}
-                className={`janggi-point ${last ? "last" : ""} ${isSelected ? "selected" : ""}`}
+                className={`janggi-point ${last ? "last" : ""} ${isSelected ? "selected" : ""} ${isDestination ? "legal-destination" : ""} ${isDestination && piece ? "capture-destination" : ""}`}
                 style={janggiPointStyle(row, col)}
                 onClick={() => handlePoint(row, col)}
                 title={`${row + 1}, ${col + 1}`}
@@ -617,6 +633,24 @@ function janggiPointStyle(row, col) {
     left: `${((col - janggiViewBox.minX) / janggiViewBox.width) * 100}%`,
     top: `${((row - janggiViewBox.minY) / janggiViewBox.height) * 100}%`,
   };
+}
+
+function moveDestinations(game, state, selected) {
+  if (!selected || !state?.board) return new Set();
+  const size = boardSize(game);
+  const legal = new Set();
+  const isLegal = game === "janggi" ? isLegalJanggiMove : game === "chess" ? isLegalChessMove : null;
+  if (!isLegal) return legal;
+
+  for (let row = 0; row < size.rows; row += 1) {
+    for (let col = 0; col < size.cols; col += 1) {
+      if (selected.row === row && selected.col === col) continue;
+      if (isLegal(state, { game, from: selected, to: { row, col }, promotion: "q" })) {
+        legal.add(`${row}:${col}`);
+      }
+    }
+  }
+  return legal;
 }
 
 function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
@@ -681,7 +715,7 @@ function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
 
 function Piece({ game, piece }) {
   if (game === "janggi") {
-    return <span className={`piece janggi-piece ${piece.side}`}>{piece.label}</span>;
+    return <span className={`piece janggi-piece ${piece.side} ${piece.type}`}>{piece.label}</span>;
   }
   if (game === "chess") {
     return <span className={`piece chess-piece ${piece.side}`}>{piece.label}</span>;
