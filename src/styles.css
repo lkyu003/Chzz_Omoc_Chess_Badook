@@ -272,8 +272,8 @@ legend {
 }
 
 .board-lines line {
-  stroke: rgba(50, 34, 16, 0.76);
-  stroke-width: 0.1;
+  stroke: rgba(24, 15, 7, 0.88);
+  stroke-width: 1.35;
   vector-effect: non-scaling-stroke;
 }
 
@@ -283,6 +283,21 @@ legend {
 
 .board.janggi {
   aspect-ratio: 9 / 10;
+  display: block;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 36%),
+    linear-gradient(90deg, rgba(84, 45, 18, 0.1), rgba(255, 223, 150, 0.08), rgba(84, 45, 18, 0.1)),
+    #cda769;
+  border-color: #5b371d;
+}
+
+.janggi-lines line {
+  stroke: rgba(54, 29, 14, 0.9);
+  stroke-width: 1.45;
+}
+
+.janggi-lines .palace-line {
+  stroke-width: 1.7;
 }
 
 .board.chess {
@@ -321,6 +336,10 @@ legend {
 .point-cell.selected {
   outline: 3px solid rgba(125, 176, 255, 0.78);
   outline-offset: 2px;
+}
+
+.janggi-point {
+  border-radius: 50%;
 }
 
 .baduk .cell {

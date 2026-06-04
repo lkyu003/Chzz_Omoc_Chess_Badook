@@ -496,6 +496,10 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
     return <IntersectionBoard game={game} state={state} voteSummary={voteSummary} role={role} turn={turn} onMove={onMove} />;
   }
 
+  if (game === "janggi") {
+    return <JanggiBoard state={state} voteSummary={voteSummary} role={role} turn={turn} onMove={onMove} selected={selected} setSelected={setSelected} overlays={overlays} />;
+  }
+
   const handleCell = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
@@ -538,6 +542,88 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
       </div>
       <div className="turn-help">{role === "streamer" ? "마우스로 착수" : game === "omok" || game === "baduk" ? "마우스로 투표" : "말을 고른 뒤 목적지를 투표"}</div>
     </div>
+  );
+}
+
+function JanggiBoard({ state, voteSummary, role, turn, onMove, selected, setSelected, overlays }) {
+  const size = boardSize("janggi");
+  const pad = 7;
+  const xInterval = (100 - pad * 2) / (size.cols - 1);
+  const yInterval = (100 - pad * 2) / (size.rows - 1);
+  const pointSize = Math.min(xInterval, yInterval) * 1.42;
+
+  const handlePoint = (row, col) => {
+    const piece = state?.board?.[row]?.[col];
+    const currentSide = state?.nextSide || "black";
+    if (!selected && piece?.side === currentSide) {
+      setSelected({ row, col });
+      return;
+    }
+    if (selected) {
+      onMove({ game: "janggi", from: selected, to: { row, col } });
+      setSelected(null);
+      return;
+    }
+    if (piece) setSelected({ row, col });
+  };
+
+  return (
+    <div className="board-wrap janggi">
+      <div className="board janggi intersection-board">
+        <svg className="board-lines janggi-lines" viewBox="0 0 100 100" aria-hidden="true">
+          {Array.from({ length: size.cols }).map((_, col) => {
+            const x = pad + col * xInterval;
+            return <line key={`v-${col}`} x1={x} y1={pad} x2={x} y2={100 - pad} />;
+          })}
+          {Array.from({ length: size.rows }).map((_, row) => {
+            const y = pad + row * yInterval;
+            return <line key={`h-${row}`} x1={pad} y1={y} x2={100 - pad} y2={y} />;
+          })}
+          <PalaceLines pad={pad} xInterval={xInterval} yInterval={yInterval} topRow={0} />
+          <PalaceLines pad={pad} xInterval={xInterval} yInterval={yInterval} topRow={7} />
+        </svg>
+
+        {Array.from({ length: size.rows }).map((_, row) =>
+          Array.from({ length: size.cols }).map((_, col) => {
+            const piece = state?.board?.[row]?.[col] || null;
+            const vote = overlays.get(`${row}:${col}`);
+            const last = lastMoveAt(state?.lastMove, row, col);
+            const isSelected = selected?.row === row && selected?.col === col;
+            return (
+              <button
+                key={`${row}-${col}`}
+                className={`point-cell janggi-point ${last ? "last" : ""} ${isSelected ? "selected" : ""}`}
+                style={{
+                  left: `${pad + col * xInterval}%`,
+                  top: `${pad + row * yInterval}%`,
+                  width: `${pointSize}%`,
+                  aspectRatio: "1",
+                }}
+                onClick={() => handlePoint(row, col)}
+                title={`${row + 1}, ${col + 1}`}
+              >
+                {piece && <Piece game="janggi" piece={piece} />}
+                {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
+              </button>
+            );
+          }),
+        )}
+      </div>
+      <div className="turn-help">{role === "streamer" ? "마우스로 착수" : "말을 고른 뒤 목적지를 투표"}</div>
+    </div>
+  );
+}
+
+function PalaceLines({ pad, xInterval, yInterval, topRow }) {
+  const left = pad + 3 * xInterval;
+  const right = pad + 5 * xInterval;
+  const top = pad + topRow * yInterval;
+  const bottom = pad + (topRow + 2) * yInterval;
+  return (
+    <>
+      <line className="palace-line" x1={left} y1={top} x2={right} y2={bottom} />
+      <line className="palace-line" x1={right} y1={top} x2={left} y2={bottom} />
+    </>
   );
 }
 

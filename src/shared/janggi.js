@@ -3,15 +3,22 @@ export const JANGGI_COLS = 9;
 
 export function createJanggiState() {
   const board = Array.from({ length: JANGGI_ROWS }, () => Array(JANGGI_COLS).fill(null));
-  const back = ["cha", "ma", "sang", "sa", "general", "sa", "sang", "ma", "cha"];
+  const back = ["cha", "ma", "sang", "sa", null, "sa", "sang", "ma", "cha"];
+
   for (let col = 0; col < JANGGI_COLS; col += 1) {
-    board[0][col] = piece("white", back[col]);
-    board[9][col] = piece("black", back[col]);
+    if (back[col]) {
+      board[0][col] = piece("white", back[col]);
+      board[9][col] = piece("black", back[col]);
+    }
   }
+
+  board[1][4] = piece("white", "general");
+  board[8][4] = piece("black", "general");
   board[2][1] = piece("white", "po");
   board[2][7] = piece("white", "po");
   board[7][1] = piece("black", "po");
   board[7][7] = piece("black", "po");
+
   for (const col of [0, 2, 4, 6, 8]) {
     board[3][col] = piece("white", "soldier");
     board[6][col] = piece("black", "soldier");
@@ -53,31 +60,31 @@ function validateJanggiMove(state, move) {
   if (state?.game !== "janggi" || move?.game !== "janggi" || !move.from || !move.to) {
     return { ok: false, reason: "illegal_move" };
   }
+
   const { from, to } = move;
   if (!inside(from.row, from.col) || !inside(to.row, to.col)) return { ok: false, reason: "off_board" };
+
   const moving = state.board[from.row][from.col];
   const target = state.board[to.row][to.col];
   if (!moving || moving.side !== state.nextSide || target?.side === moving.side) return { ok: false, reason: "wrong_piece" };
 
   const dr = to.row - from.row;
   const dc = to.col - from.col;
-  const adr = Math.abs(dr);
-  const adc = Math.abs(dc);
 
-  if (moving.type === "cha") return { ok: isStraight(dr, dc) && clearStraightPath(state.board, from, to), reason: "blocked" };
-  if (moving.type === "po") return { ok: isStraight(dr, dc) && cannonPathOk(state.board, from, to, target), reason: "blocked" };
+  if (moving.type === "cha") return { ok: rookLineOk(state.board, from, to), reason: "blocked" };
+  if (moving.type === "po") return { ok: cannonLineOk(state.board, from, to, target), reason: "blocked" };
   if (moving.type === "ma") return { ok: horseOk(state.board, from, dr, dc), reason: "blocked" };
   if (moving.type === "sang") return { ok: elephantOk(state.board, from, dr, dc), reason: "blocked" };
-  if (moving.type === "sa") return { ok: palace(to, moving.side) && adr === 1 && adc === 1, reason: "palace" };
-  if (moving.type === "general") return { ok: palace(to, moving.side) && ((adr === 1 && adc === 0) || (adr === 0 && adc === 1) || (adr === 1 && adc === 1)), reason: "palace" };
-  if (moving.type === "soldier") return { ok: soldierOk(moving.side, dr, dc), reason: "direction" };
+  if (moving.type === "sa") return { ok: palaceStepOk(from, to), reason: "palace" };
+  if (moving.type === "general") return { ok: palaceStepOk(from, to), reason: "palace" };
+  if (moving.type === "soldier") return { ok: soldierOk(moving.side, from, to), reason: "direction" };
   return { ok: false, reason: "unknown_piece" };
 }
 
 function piece(side, type) {
   const labels = {
-    black: { cha: "車", ma: "馬", sang: "象", sa: "士", general: "將", po: "包", soldier: "卒" },
-    white: { cha: "車", ma: "馬", sang: "象", sa: "士", general: "帥", po: "包", soldier: "兵" },
+    black: { cha: "車", ma: "馬", sang: "象", sa: "士", general: "楚", po: "包", soldier: "卒" },
+    white: { cha: "車", ma: "馬", sang: "象", sa: "士", general: "漢", po: "包", soldier: "兵" },
   };
   return { game: "janggi", side, type, label: labels[side][type] };
 }
@@ -107,19 +114,52 @@ function clearStraightPath(board, from, to) {
   return true;
 }
 
-function cannonPathOk(board, from, to, target) {
+function rookLineOk(board, from, to) {
+  if (isStraight(to.row - from.row, to.col - from.col)) return clearStraightPath(board, from, to);
+  return palaceDiagonalLine(from, to) && clearDiagonalPath(board, from, to);
+}
+
+function cannonLineOk(board, from, to, target) {
   if (target?.type === "po") return false;
+  if (isStraight(to.row - from.row, to.col - from.col)) return cannonPathOk(board, from, to);
+  return palaceDiagonalLine(from, to) && cannonDiagonalPathOk(board, from, to);
+}
+
+function cannonPathOk(board, from, to) {
+  let screens = 0;
+  for (const [row, col] of pointsBetween(from, to)) {
+    if (board[row][col]) screens += 1;
+  }
+  return screens === 1;
+}
+
+function clearDiagonalPath(board, from, to) {
+  for (const [row, col] of pointsBetween(from, to)) {
+    if (board[row][col]) return false;
+  }
+  return true;
+}
+
+function cannonDiagonalPathOk(board, from, to) {
+  let screens = 0;
+  for (const [row, col] of pointsBetween(from, to)) {
+    if (board[row][col]) screens += 1;
+  }
+  return screens === 1;
+}
+
+function pointsBetween(from, to) {
   const stepRow = Math.sign(to.row - from.row);
   const stepCol = Math.sign(to.col - from.col);
+  const points = [];
   let row = from.row + stepRow;
   let col = from.col + stepCol;
-  let screens = 0;
   while (row !== to.row || col !== to.col) {
-    if (board[row][col]) screens += 1;
+    points.push([row, col]);
     row += stepRow;
     col += stepCol;
   }
-  return screens === 1;
+  return points;
 }
 
 function horseOk(board, from, dr, dc) {
@@ -135,14 +175,44 @@ function elephantOk(board, from, dr, dc) {
   return !board[first.row][first.col] && !board[second.row][second.col];
 }
 
-function palace(pos, side) {
-  const rows = side === "black" ? [7, 8, 9] : [0, 1, 2];
-  return rows.includes(pos.row) && pos.col >= 3 && pos.col <= 5;
+function palaceAny(pos) {
+  return ((pos.row >= 0 && pos.row <= 2) || (pos.row >= 7 && pos.row <= 9)) && pos.col >= 3 && pos.col <= 5;
 }
 
-function soldierOk(side, dr, dc) {
+function palaceStepOk(from, to) {
+  const dr = Math.abs(to.row - from.row);
+  const dc = Math.abs(to.col - from.col);
+  if (!palaceAny(from) || !palaceAny(to)) return false;
+  if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) return true;
+  return dr === 1 && dc === 1 && palaceDiagonalStep(from, to);
+}
+
+function palaceDiagonalStep(from, to) {
+  return palaceDiagonalLine(from, to) && Math.abs(to.row - from.row) === 1;
+}
+
+function palaceDiagonalLine(from, to) {
+  if (!palaceAny(from) || !palaceAny(to)) return false;
+  if (Math.abs(to.row - from.row) !== Math.abs(to.col - from.col)) return false;
+
+  const topRow = from.row <= 2 ? 0 : 7;
+  if (to.row < topRow || to.row > topRow + 2) return false;
+
+  const fromRow = from.row - topRow;
+  const toRow = to.row - topRow;
+  const fromCol = from.col - 3;
+  const toCol = to.col - 3;
+  const mainDiagonal = fromRow === fromCol && toRow === toCol;
+  const antiDiagonal = fromRow + fromCol === 2 && toRow + toCol === 2;
+  return mainDiagonal || antiDiagonal;
+}
+
+function soldierOk(side, from, to) {
+  const dr = to.row - from.row;
+  const dc = to.col - from.col;
   const forward = side === "black" ? -1 : 1;
-  return (dr === forward && dc === 0) || (dr === 0 && Math.abs(dc) === 1);
+  if ((dr === forward && dc === 0) || (dr === 0 && Math.abs(dc) === 1)) return true;
+  return dr === forward && Math.abs(dc) === 1 && palaceDiagonalStep(from, to);
 }
 
 function opponent(side) {

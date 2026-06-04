@@ -36,13 +36,16 @@ test("chess accepts legal moves and rejects illegal moves", () => {
 
 test("janggi validates simple soldier and chariot moves", () => {
   let state = createJanggiState();
-  assert.equal(state.board[9][4].side, "black");
+  assert.equal(state.board[8][4].side, "black");
+  assert.equal(state.board[8][4].type, "general");
+  assert.equal(state.board[9][4], null);
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 6, col: 0 }, to: { row: 5, col: 0 } }), true);
   let result = applyJanggiMove(state, { game: "janggi", from: { row: 6, col: 0 }, to: { row: 5, col: 0 } });
   assert.equal(result.ok, true);
   state = result.state;
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 3, col: 0 }, to: { row: 4, col: 0 } }), true);
   assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 0, col: 0 }, to: { row: 4, col: 0 } }), false);
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 1, col: 4 }, to: { row: 2, col: 3 } }), true);
 });
 
 test("password normalization lowercases and maps Korean keyboard input", () => {
