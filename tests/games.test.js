@@ -206,6 +206,51 @@ test("rooms wait for streamer start after create and reconfigure", async () => {
   room.clearTimers();
 });
 
+test("rooms limit concurrent viewers from the same IP", async () => {
+  const room = new GameRoom({}, { ROOM_ADMIN_PASSWORD: "pass", MAX_VIEWERS_PER_IP: "2" });
+  const createResponse = await room.fetch(
+    new Request("http://local/api/room/create", {
+      method: "POST",
+      body: JSON.stringify({ password: "pass", game: "omok" }),
+    }),
+  );
+  const created = await createResponse.json();
+  assert.equal(created.ok, true);
+
+  const makeViewer = (id) => ({
+    id,
+    role: "viewer",
+    ip: "203.0.113.7",
+    socket: { send() {}, close() {} },
+    lastVoteAt: 0,
+  });
+
+  room.sockets.set("viewer-1", makeViewer("viewer-1"));
+  room.sockets.set("viewer-2", makeViewer("viewer-2"));
+  room.room.viewers.add("viewer-1");
+  room.room.viewers.add("viewer-2");
+
+  const messages = [];
+  let closed = false;
+  room.sockets.set("viewer-3", {
+    ...makeViewer("viewer-3"),
+    socket: {
+      send(text) {
+        messages.push(JSON.parse(text));
+      },
+      close() {
+        closed = true;
+      },
+    },
+  });
+
+  room.join("viewer-3", { role: "viewer" });
+  assert.equal(room.room.viewers.has("viewer-3"), false);
+  assert.equal(closed, true);
+  assert.equal(messages.at(-1).code, "too_many_viewers_per_ip");
+  room.clearTimers();
+});
+
 test("password normalization lowercases and maps Korean keyboard input", () => {
   assert.equal(normalizePassword("ABCDef"), "abcdef");
   assert.equal(normalizePassword("ㅔㅁㄴㄴ"), "pass");

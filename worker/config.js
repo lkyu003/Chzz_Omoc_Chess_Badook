@@ -1,6 +1,7 @@
 export function roomConfig(env = {}) {
   return {
     maxViewers: numberFromEnv(env.MAX_VIEWERS, 250),
+    maxViewersPerIp: numberFromEnv(env.MAX_VIEWERS_PER_IP, 2),
     voteBroadcastIntervalMs: numberFromEnv(env.VOTE_BROADCAST_INTERVAL_MS, 5000),
     topVoteCandidates: numberFromEnv(env.TOP_VOTE_CANDIDATES, 10),
     createRoomLimitPerMinute: numberFromEnv(env.CREATE_ROOM_LIMIT_PER_MINUTE, 6),

@@ -270,6 +270,11 @@ export class GameRoom {
         this.send(socketId, { type: "error", code: "room_full", message: "Viewer cap reached." });
         return;
       }
+      if (this.viewerCountForIp(client.ip) >= this.config.maxViewersPerIp) {
+        this.send(socketId, { type: "error", code: "too_many_viewers_per_ip", message: "Too many viewers from the same IP." });
+        this.closeSocket(socketId, 1008, "too_many_viewers_per_ip");
+        return;
+      }
       client.role = "viewer";
       this.room.viewers.add(socketId);
     }
@@ -481,6 +486,15 @@ export class GameRoom {
       this.room.streamerSocketId = null;
     }
     this.scheduleViewerCountBroadcast();
+  }
+
+  viewerCountForIp(ip) {
+    let count = 0;
+    for (const socketId of this.room.viewers) {
+      const viewer = this.sockets.get(socketId);
+      if (viewer?.ip === ip) count += 1;
+    }
+    return count;
   }
 
   publicState() {

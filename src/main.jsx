@@ -18,6 +18,7 @@ const timeOptions = [5, 10, 15, 20, 25, 30];
 function readableError(message) {
   if (message.code === "no_room") return "현재 열린 방이 없습니다.";
   if (message.code === "rate_limited") return "요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요.";
+  if (message.code === "too_many_viewers_per_ip") return "같은 IP에서는 최대 2명까지만 참여할 수 있습니다.";
   return message.message || message.code || "요청을 처리하지 못했습니다.";
 }
 
