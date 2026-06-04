@@ -480,7 +480,8 @@ legend {
   font-size: clamp(26px, 4.7vw, 48px);
 }
 
-.janggi-piece.sa {
+.janggi-piece.sa,
+.janggi-piece.soldier {
   width: 84%;
   font-size: clamp(18px, 3.5vw, 34px);
 }
