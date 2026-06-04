@@ -313,6 +313,11 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
   const countdown = useCountdown(state?.turn, serverOffsetMs);
   const game = state?.game || "omok";
   const winnerText = victoryText(game, state?.gameState?.winner);
+  const [dismissedWinner, setDismissedWinner] = useState("");
+
+  useEffect(() => {
+    setDismissedWinner("");
+  }, [winnerText]);
 
   return (
     <main className={`game-shell theme-${game}`}>
@@ -364,19 +369,19 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           onSubmit={reconfigureRoom}
         />
       )}
-      {winnerText && <VictoryOverlay text={winnerText} />}
+      {winnerText && dismissedWinner !== winnerText && <VictoryOverlay text={winnerText} onDismiss={() => setDismissedWinner(winnerText)} />}
     </main>
   );
 }
 
-function VictoryOverlay({ text }) {
+function VictoryOverlay({ text, onDismiss }) {
   return (
-    <div className="victory-overlay" aria-live="polite">
+    <button className="victory-overlay" type="button" aria-live="polite" onClick={onDismiss}>
       <div className="victory-bubble">
         <span>승리</span>
         <strong>{text}</strong>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -534,15 +539,16 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
             const last = lastMoveAt(state?.lastMove, row, col);
             const isSelected = selected?.row === row && selected?.col === col;
             const isDestination = legalDestinations.has(`${row}:${col}`);
+            const hasVote = Boolean(vote && turn?.side === "viewers");
             return (
               <button
                 key={`${row}-${col}`}
-                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""} ${isSelected ? "selected" : ""} ${isDestination ? "legal-destination" : ""} ${isDestination && piece ? "capture-destination" : ""}`}
+                className={`cell ${cellShade(game, row, col)} ${last ? "last" : ""} ${hasVote ? "voted" : ""} ${isSelected ? "selected" : ""} ${isDestination ? "legal-destination" : ""} ${isDestination && piece ? "capture-destination" : ""}`}
                 onClick={() => handleCell(row, col)}
                 title={`${row + 1}, ${col + 1}`}
               >
                 {piece && <Piece game={game} piece={piece} row={row} col={col} />}
-                {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
+                {hasVote && <span className="vote-badge">{vote.percent}%</span>}
               </button>
             );
           }),
@@ -600,16 +606,17 @@ function JanggiBoard({ state, role, turn, onMove, selected, setSelected, overlay
             const last = lastMoveAt(state?.lastMove, row, col);
             const isSelected = selected?.row === row && selected?.col === col;
             const isDestination = legalDestinations.has(`${row}:${col}`);
+            const hasVote = Boolean(vote && turn?.side === "viewers");
             return (
               <button
                 key={`${row}-${col}`}
-                className={`janggi-point ${last ? "last" : ""} ${isSelected ? "selected" : ""} ${isDestination ? "legal-destination" : ""} ${isDestination && piece ? "capture-destination" : ""}`}
+                className={`janggi-point ${last ? "last" : ""} ${hasVote ? "voted" : ""} ${isSelected ? "selected" : ""} ${isDestination ? "legal-destination" : ""} ${isDestination && piece ? "capture-destination" : ""}`}
                 style={janggiPointStyle(row, col)}
                 onClick={() => handlePoint(row, col)}
                 title={`${row + 1}, ${col + 1}`}
               >
                 {piece && <Piece game="janggi" piece={piece} />}
-                {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
+                {hasVote && <span className="vote-badge">{vote.percent}%</span>}
               </button>
             );
           }),
@@ -689,10 +696,11 @@ function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
             const piece = state?.board?.[row]?.[col] || null;
             const vote = overlays.get(`${row}:${col}`);
             const last = lastMoveAt(state?.lastMove, row, col);
+            const hasVote = Boolean(vote && turn?.side === "viewers");
             return (
               <button
                 key={`${row}-${col}`}
-                className={`point-cell ${last ? "last" : ""}`}
+                className={`point-cell ${last ? "last" : ""} ${hasVote ? "voted" : ""}`}
                 style={{
                   left: `${pad + col * interval}%`,
                   top: `${pad + row * interval}%`,
@@ -703,7 +711,7 @@ function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
                 title={`${row + 1}, ${col + 1}`}
               >
                 {piece && <Piece game={game} piece={piece} />}
-                {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
+                {hasVote && <span className="vote-badge">{vote.percent}%</span>}
               </button>
             );
           }),

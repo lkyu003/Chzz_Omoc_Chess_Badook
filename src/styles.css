@@ -454,7 +454,10 @@ legend {
 
 .cell.last::after,
 .point-cell.last::after,
-.janggi-point.last::after {
+.janggi-point.last::after,
+.cell.voted::after,
+.point-cell.voted::after,
+.janggi-point.voted::after {
   content: "";
   position: absolute;
   inset: 32%;
@@ -713,8 +716,10 @@ legend {
   display: grid;
   place-items: center;
   padding: 24px;
-  pointer-events: none;
+  width: 100%;
+  border: 0;
   background: rgba(7, 10, 13, 0.34);
+  cursor: pointer;
 }
 
 .victory-bubble {
