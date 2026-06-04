@@ -17,6 +17,7 @@ const timeOptions = [5, 10, 15, 20, 25, 30];
 
 function readableError(message) {
   if (message.code === "no_room") return "현재 열린 방이 없습니다.";
+  if (message.code === "rate_limited") return "요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요.";
   return message.message || message.code || "요청을 처리하지 못했습니다.";
 }
 
@@ -36,9 +37,11 @@ function App() {
   const [muted, setMuted] = useState(localStorage.getItem("muted") === "true");
   const [setupOpen, setSetupOpen] = useState(false);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
+  const [busyAction, setBusyAction] = useState("");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pendingRoleRef = useRef(null);
+  const lastActionAtRef = useRef({ create: 0, join: 0 });
 
   useEffect(() => {
     audioRef.current = createMoveAudio();
@@ -107,6 +110,10 @@ function App() {
 
   const createRoom = async (event) => {
     event.preventDefault();
+    const now = Date.now();
+    if (busyAction || now - lastActionAtRef.current.create < 3000) return;
+    lastActionAtRef.current.create = now;
+    setBusyAction("create");
     setError("");
     audioRef.current?.unlock();
     const response = await fetch("/api/room/create", {
@@ -116,7 +123,8 @@ function App() {
     });
     const payload = await response.json();
     if (!payload.ok) {
-      setError(payload.code || "방 생성 실패");
+      setTimeout(() => setBusyAction((current) => (current === "create" ? "" : current)), 1200);
+      setError(readableError(payload));
       return;
     }
     localStorage.setItem("streamerToken", payload.streamerToken);
@@ -124,12 +132,18 @@ function App() {
     setRole("streamer");
     setState(payload.state);
     connect("streamer", payload.streamerToken);
+    setTimeout(() => setBusyAction((current) => (current === "create" ? "" : current)), 1200);
   };
 
   const joinRoom = (event) => {
     event?.preventDefault();
+    const now = Date.now();
+    if (busyAction || socketStatus === "connecting" || now - lastActionAtRef.current.join < 1500) return;
+    lastActionAtRef.current.join = now;
+    setBusyAction("join");
     audioRef.current?.unlock();
     connect("viewer", "");
+    setTimeout(() => setBusyAction((current) => (current === "join" ? "" : current)), 1500);
   };
 
   const resetRoom = async () => {
@@ -194,6 +208,7 @@ function App() {
         setViewerSeconds={setViewerSeconds}
         createRoom={createRoom}
         joinRoom={joinRoom}
+        busyAction={busyAction}
         error={error}
       />
     );
@@ -237,6 +252,7 @@ function EntryScreen(props) {
           </button>
           <button
             className={props.mode === "join" ? "active" : ""}
+            disabled={props.busyAction === "join"}
             onClick={(event) => {
               if (props.mode === "join") {
                 props.joinRoom(event);
@@ -276,7 +292,7 @@ function EntryScreen(props) {
             </fieldset>
             <TimeSelect label="스트리머 제한시간" value={props.streamerSeconds} setValue={props.setStreamerSeconds} />
             <TimeSelect label="시청자 제한시간" value={props.viewerSeconds} setValue={props.setViewerSeconds} />
-            <button className="primary" type="submit">
+            <button className="primary" type="submit" disabled={props.busyAction === "create"}>
               방 생성
             </button>
           </form>

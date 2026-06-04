@@ -7,6 +7,7 @@ import { roomConfig } from "./config.js";
 
 const DEFAULT_STREAMER_SECONDS = 30;
 const DEFAULT_VIEWER_SECONDS = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 export class GameRoom {
   constructor(state, env) {
@@ -18,20 +19,28 @@ export class GameRoom {
     this.turnTimer = null;
     this.voteBroadcastTimer = null;
     this.viewerCountBroadcastTimer = null;
+    this.rateLimits = new Map();
   }
 
   async fetch(request) {
     const url = new URL(request.url);
+    const ip = clientIp(request);
 
     if (url.pathname === "/api/room/create" && request.method === "POST") {
+      const limit = this.checkRateLimit(`create:${ip}`, this.config.createRoomLimitPerMinute);
+      if (!limit.ok) return rateLimitedResponse(limit.retryAfterMs);
       return this.createRoom(request);
     }
 
     if (url.pathname === "/api/room/reset" && request.method === "POST") {
+      const limit = this.checkRateLimit(`admin:${ip}`, this.config.adminActionLimitPerMinute);
+      if (!limit.ok) return rateLimitedResponse(limit.retryAfterMs);
       return this.resetRoom(request);
     }
 
     if (url.pathname === "/api/room/reconfigure" && request.method === "POST") {
+      const limit = this.checkRateLimit(`admin:${ip}`, this.config.adminActionLimitPerMinute);
+      if (!limit.ok) return rateLimitedResponse(limit.retryAfterMs);
       return this.reconfigureRoom(request);
     }
 
@@ -39,7 +48,9 @@ export class GameRoom {
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("Expected WebSocket", { status: 426 });
       }
-      return this.handleWebSocket();
+      const limit = this.checkRateLimit(`ws:${ip}`, this.config.websocketLimitPerMinute);
+      if (!limit.ok) return new Response("Too many connection attempts", { status: 429, headers: rateLimitHeaders(limit.retryAfterMs) });
+      return this.handleWebSocket(ip);
     }
 
     return new Response("Not found", { status: 404 });
@@ -119,7 +130,7 @@ export class GameRoom {
     return Response.json({ ok: true, state: this.publicState() });
   }
 
-  handleWebSocket() {
+  handleWebSocket(ip) {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     const socketId = crypto.randomUUID();
@@ -130,6 +141,7 @@ export class GameRoom {
       socket: server,
       role: "viewer",
       nickname: "",
+      ip,
       lastVoteAt: 0,
     });
 
@@ -194,6 +206,13 @@ export class GameRoom {
     const client = this.sockets.get(socketId);
     client.nickname = sanitizeNickname(message.nickname);
 
+    const limit = this.checkRateLimit(`join:${client.ip}`, this.config.joinLimitPerMinute);
+    if (!limit.ok) {
+      this.send(socketId, { type: "error", code: "rate_limited", message: "Too many join attempts. Please wait a moment.", retryAfterMs: limit.retryAfterMs });
+      this.closeSocket(socketId, 1008, "rate_limited");
+      return;
+    }
+
     if (message.role === "streamer") {
       if (this.room.active && message.token && message.token === this.room.streamerToken) {
         client.role = "streamer";
@@ -219,6 +238,7 @@ export class GameRoom {
     } else {
       if (!this.room.active) {
         this.send(socketId, { type: "error", code: "no_room", message: "No active room exists." });
+        this.closeSocket(socketId, 1008, "no_room");
         return;
       }
       if (this.room.viewers.size >= this.config.maxViewers) {
@@ -437,6 +457,40 @@ export class GameRoom {
     }
   }
 
+  closeSocket(socketId, code = 1008, reason = "closed") {
+    const client = this.sockets.get(socketId);
+    if (!client) return;
+    try {
+      client.socket.close(code, reason);
+    } catch {
+      this.disconnect(socketId);
+    }
+  }
+
+  checkRateLimit(key, maxEvents, now = Date.now()) {
+    if (this.config.harnessMode) return { ok: true, retryAfterMs: 0 };
+    const events = (this.rateLimits.get(key) || []).filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS);
+    if (events.length >= maxEvents) {
+      this.rateLimits.set(key, events);
+      return { ok: false, retryAfterMs: Math.max(1000, RATE_LIMIT_WINDOW_MS - (now - events[0])) };
+    }
+    events.push(now);
+    this.rateLimits.set(key, events);
+    if (this.rateLimits.size > 2000) this.pruneRateLimits(now);
+    return { ok: true, retryAfterMs: 0 };
+  }
+
+  pruneRateLimits(now = Date.now()) {
+    for (const [key, events] of this.rateLimits.entries()) {
+      const active = events.filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS);
+      if (active.length) {
+        this.rateLimits.set(key, active);
+      } else {
+        this.rateLimits.delete(key);
+      }
+    }
+  }
+
   clearTimers() {
     clearTimeout(this.turnTimer);
     clearTimeout(this.voteBroadcastTimer);
@@ -502,4 +556,22 @@ function parseJson(data) {
 
 function sanitizeNickname(value) {
   return String(value || "").slice(0, 32);
+}
+
+function clientIp(request) {
+  return (
+    request.headers.get("CF-Connecting-IP") ||
+    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
+    "local"
+  );
+}
+
+function rateLimitedResponse(retryAfterMs) {
+  return Response.json({ ok: false, code: "rate_limited", retryAfterMs }, { status: 429, headers: rateLimitHeaders(retryAfterMs) });
+}
+
+function rateLimitHeaders(retryAfterMs) {
+  return {
+    "Retry-After": String(Math.ceil(retryAfterMs / 1000)),
+  };
 }
