@@ -222,12 +222,13 @@ function EntryScreen(props) {
   return (
     <main className="entry-shell">
       <section className="entry-panel">
+        <img className="title-art" src="/mini-game-title.png" alt="미니게임" />
         <div className="brand-row">
           <div>
-            <h1>대국 투표방</h1>
+            <h1>미니게임 투표방</h1>
             <p>스트리머 한 명과 시청자 다수가 한 수씩 겨룹니다.</p>
           </div>
-          <span className="status-pill">Cloudflare 1 Room</span>
+          <span className="status-pill">Live Room</span>
         </div>
 
         <div className="mode-tabs">
