@@ -3,6 +3,7 @@ import test from "node:test";
 import { applyBadukMove, createBadukState, isLegalBadukMove } from "../src/shared/baduk.js";
 import { applyChessMove, createChessState, isLegalChessMove } from "../src/shared/chessGame.js";
 import { applyJanggiMove, createJanggiState, isLegalJanggiMove } from "../src/shared/janggi.js";
+import { normalizePassword } from "../src/shared/password.js";
 import { createVoteState, recordVote, winningVote } from "../src/shared/votes.js";
 
 test("baduk captures surrounded stones and rejects occupied points", () => {
@@ -35,12 +36,19 @@ test("chess accepts legal moves and rejects illegal moves", () => {
 
 test("janggi validates simple soldier and chariot moves", () => {
   let state = createJanggiState();
-  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 3, col: 0 }, to: { row: 4, col: 0 } }), true);
-  let result = applyJanggiMove(state, { game: "janggi", from: { row: 3, col: 0 }, to: { row: 4, col: 0 } });
+  assert.equal(state.board[9][4].side, "black");
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 6, col: 0 }, to: { row: 5, col: 0 } }), true);
+  let result = applyJanggiMove(state, { game: "janggi", from: { row: 6, col: 0 }, to: { row: 5, col: 0 } });
   assert.equal(result.ok, true);
   state = result.state;
-  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 9, col: 0 }, to: { row: 8, col: 0 } }), true);
-  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 9, col: 0 }, to: { row: 5, col: 0 } }), false);
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 3, col: 0 }, to: { row: 4, col: 0 } }), true);
+  assert.equal(isLegalJanggiMove(state, { game: "janggi", from: { row: 0, col: 0 }, to: { row: 4, col: 0 } }), false);
+});
+
+test("password normalization lowercases and maps Korean keyboard input", () => {
+  assert.equal(normalizePassword("ABCDef"), "abcdef");
+  assert.equal(normalizePassword("ㅔㅁㄴㄴ"), "pass");
+  assert.equal(normalizePassword("ㅁㅠㅊ123"), "abc123");
 });
 
 test("vote keys distinguish piece moves", () => {

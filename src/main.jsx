@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { normalizePassword } from "./shared/password.js";
 import { createMoveAudio } from "./sound/moveAudio.js";
 import "./styles.css";
 
@@ -216,7 +217,16 @@ function EntryScreen(props) {
           <form onSubmit={props.createRoom} className="entry-form">
             <label>
               암호
-              <input type="password" value={props.password} onChange={(event) => props.setPassword(event.target.value)} required />
+              <input
+                type="password"
+                value={props.password}
+                onChange={(event) => props.setPassword(normalizePassword(event.target.value))}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                inputMode="text"
+                required
+              />
             </label>
             <fieldset>
               <legend>게임</legend>
@@ -302,7 +312,7 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
       <section className="game-layout">
         <div className="center-stage">
           <Board game={game} state={state?.gameState} voteSummary={voteSummary} role={role} turn={state?.turn} onMove={onMove} />
-          <TurnClockBar turn={state?.turn} countdown={countdown} streamerSeconds={state?.streamerSeconds || 30} viewerSeconds={state?.viewerSeconds || 30} />
+          <TurnClockBar game={game} turn={state?.turn} countdown={countdown} streamerSeconds={state?.streamerSeconds || 30} viewerSeconds={state?.viewerSeconds || 30} />
         </div>
         <aside className="side-panel">
           <h2>투표 현황</h2>
@@ -368,27 +378,59 @@ function RoomSetupModal({ state, onClose, onSubmit }) {
   );
 }
 
-function TurnClockBar({ turn, countdown, streamerSeconds, viewerSeconds }) {
+function TurnClockBar({ game, turn, countdown, streamerSeconds, viewerSeconds }) {
   const streamerActive = turn?.side === "streamer";
   const viewerActive = turn?.side === "viewers";
+  const teams = clockTeams(game);
   return (
     <div className="turn-clock-bar">
       <div className={`turn-clock streamer ${streamerActive ? "active" : ""}`}>
-        <span className="turn-icon">S</span>
+        <span className={`turn-icon ${teams.streamerClass}`}>{teams.streamerMark}</span>
         <div>
-          <strong>스트리머</strong>
+          <strong>스트리머 · {teams.streamerName}</strong>
           <span>{streamerActive ? `${countdown}초` : `${streamerSeconds}초`}</span>
         </div>
       </div>
       <div className={`turn-clock viewers ${viewerActive ? "active" : ""}`}>
         <div>
-          <strong>시청자</strong>
+          <strong>시청자 · {teams.viewerName}</strong>
           <span>{viewerActive ? `${countdown}초` : `${viewerSeconds}초`}</span>
         </div>
-        <span className="turn-icon">V</span>
+        <span className={`turn-icon ${teams.viewerClass}`}>{teams.viewerMark}</span>
       </div>
     </div>
   );
+}
+
+function clockTeams(game) {
+  if (game === "janggi") {
+    return {
+      streamerMark: "청",
+      streamerName: "청팀",
+      streamerClass: "blue-team",
+      viewerMark: "적",
+      viewerName: "적팀",
+      viewerClass: "red-team",
+    };
+  }
+  if (game === "chess") {
+    return {
+      streamerMark: "♔",
+      streamerName: "백",
+      streamerClass: "white-team",
+      viewerMark: "♚",
+      viewerName: "흑",
+      viewerClass: "black-team",
+    };
+  }
+  return {
+    streamerMark: "흑",
+    streamerName: "흑",
+    streamerClass: "black-team",
+    viewerMark: "백",
+    viewerName: "백",
+    viewerClass: "white-team",
+  };
 }
 
 function Board({ game, state, voteSummary, role, turn, onMove }) {

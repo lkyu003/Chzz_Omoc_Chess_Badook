@@ -544,6 +544,27 @@ legend {
   background: #7db0ff;
 }
 
+.turn-icon.black-team {
+  color: #f4f7f8;
+  background: #15191d;
+  border: 1px solid #5d6972;
+}
+
+.turn-icon.white-team {
+  color: #161a1d;
+  background: #f1eee6;
+}
+
+.turn-icon.blue-team {
+  color: #eef5ff;
+  background: #1f55a8;
+}
+
+.turn-icon.red-team {
+  color: #fff3f1;
+  background: #a8302d;
+}
+
 .side-panel {
   grid-column: 3;
   width: 100%;

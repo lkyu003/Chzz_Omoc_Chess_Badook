@@ -1,5 +1,6 @@
 import { createInitialGameState, applyGameMove, isLegalGameMove } from "../src/shared/gameRules.js";
 import { createOmokState } from "../src/shared/omok.js";
+import { normalizePassword } from "../src/shared/password.js";
 import { clearVote, createVoteState, recordVote, summarizeVotes, winningVote } from "../src/shared/votes.js";
 import { roomConfig } from "./config.js";
 
@@ -45,13 +46,13 @@ export class GameRoom {
 
   async createRoom(request) {
     const body = await safeJson(request);
-    const password = body.password || "";
+    const password = normalizePassword(body.password || "");
 
     if (!this.env.ROOM_ADMIN_PASSWORD) {
       return Response.json({ ok: false, code: "missing_admin_secret" }, { status: 500 });
     }
 
-    if (password !== this.env.ROOM_ADMIN_PASSWORD) {
+    if (password !== normalizePassword(this.env.ROOM_ADMIN_PASSWORD)) {
       return Response.json({ ok: false, code: "wrong_password" }, { status: 401 });
     }
 

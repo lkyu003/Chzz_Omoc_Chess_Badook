@@ -5,16 +5,16 @@ export function createJanggiState() {
   const board = Array.from({ length: JANGGI_ROWS }, () => Array(JANGGI_COLS).fill(null));
   const back = ["cha", "ma", "sang", "sa", "general", "sa", "sang", "ma", "cha"];
   for (let col = 0; col < JANGGI_COLS; col += 1) {
-    board[0][col] = piece("black", back[col]);
-    board[9][col] = piece("white", back[col]);
+    board[0][col] = piece("white", back[col]);
+    board[9][col] = piece("black", back[col]);
   }
-  board[2][1] = piece("black", "po");
-  board[2][7] = piece("black", "po");
-  board[7][1] = piece("white", "po");
-  board[7][7] = piece("white", "po");
+  board[2][1] = piece("white", "po");
+  board[2][7] = piece("white", "po");
+  board[7][1] = piece("black", "po");
+  board[7][7] = piece("black", "po");
   for (const col of [0, 2, 4, 6, 8]) {
-    board[3][col] = piece("black", "soldier");
-    board[6][col] = piece("white", "soldier");
+    board[3][col] = piece("white", "soldier");
+    board[6][col] = piece("black", "soldier");
   }
 
   return {
@@ -136,12 +136,12 @@ function elephantOk(board, from, dr, dc) {
 }
 
 function palace(pos, side) {
-  const rows = side === "black" ? [0, 1, 2] : [7, 8, 9];
+  const rows = side === "black" ? [7, 8, 9] : [0, 1, 2];
   return rows.includes(pos.row) && pos.col >= 3 && pos.col <= 5;
 }
 
 function soldierOk(side, dr, dc) {
-  const forward = side === "black" ? 1 : -1;
+  const forward = side === "black" ? -1 : 1;
   return (dr === forward && dc === 0) || (dr === 0 && Math.abs(dc) === 1);
 }
 
