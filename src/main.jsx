@@ -155,6 +155,23 @@ function App() {
     });
   };
 
+  const startGame = async () => {
+    if (!token) return;
+    setError("");
+    const response = await fetch("/api/room/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) {
+      setError(readableError(payload));
+      return;
+    }
+    setState(payload.state);
+    setVoteSummary({ totalVotes: 0, top: [] });
+  };
+
   const reconfigureRoom = async ({ game: nextGame, streamerSeconds: nextStreamerSeconds, viewerSeconds: nextViewerSeconds }) => {
     if (!token) return;
     setError("");
@@ -225,6 +242,7 @@ function App() {
       setMuted={setMuted}
       onMove={sendMove}
       resetRoom={resetRoom}
+      startGame={startGame}
       reconfigureRoom={reconfigureRoom}
       setupOpen={setupOpen}
       setSetupOpen={setSetupOpen}
@@ -325,10 +343,11 @@ function TimeSelect({ label, value, setValue }) {
   );
 }
 
-function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom, reconfigureRoom, setupOpen, setSetupOpen, serverOffsetMs }) {
+function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom, startGame, reconfigureRoom, setupOpen, setSetupOpen, serverOffsetMs }) {
   const countdown = useCountdown(state?.turn, serverOffsetMs);
   const game = state?.game || "omok";
   const winnerText = victoryText(game, state?.gameState?.winner);
+  const canStartGame = role === "streamer" && state?.active && state?.phase !== "playing";
   const [dismissedWinner, setDismissedWinner] = useState("");
   const [pipMessage, setPipMessage] = useState("");
   const pipWindowRef = useRef(null);
@@ -432,7 +451,7 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           <span className="metric">{socketStatus}</span>
           <span className="metric">시청자 {state?.viewerCount || 0}</span>
           <span className="metric">
-            {state?.turn?.side === "viewers" ? "시청자 턴" : "스트리머 턴"} {countdown}s
+            {turnStatusText(state, countdown)}
           </span>
           <button className="icon-button" title="효과음" onClick={() => setMuted(!muted)}>
             {muted ? "음소거" : "소리"}
@@ -443,6 +462,11 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           {role === "streamer" && (
             <button className="secondary" onClick={() => setSetupOpen(true)}>
               게임 설정
+            </button>
+          )}
+          {role === "streamer" && (
+            <button className="primary" onClick={startGame} disabled={!canStartGame}>
+              게임 시작
             </button>
           )}
           {role === "streamer" && (
@@ -461,6 +485,8 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
         <aside className="side-panel">
           <h2>투표 현황</h2>
           <VoteList voteSummary={voteSummary} />
+          {state?.phase === "waiting" && <p className="notice">게임 시작 대기 중입니다.</p>}
+          {state?.phase === "ended" && <p className="notice">게임이 종료되었습니다. 게임 시작을 누르면 같은 설정으로 다시 시작합니다.</p>}
           {state?.gameState?.winner && <p className="winner">{sideLabel(state.gameState.winner)} 승리</p>}
           {state?.gameState?.isCheck && <p className="notice">체크 상태입니다.</p>}
           {state?.gameState?.isDraw && <p className="notice">무승부 상태입니다.</p>}
@@ -542,7 +568,7 @@ function RoomSetupModal({ state, onClose, onSubmit }) {
             취소
           </button>
           <button className="primary" type="submit">
-            적용하고 새 게임 시작
+            설정 적용
           </button>
         </div>
       </form>
@@ -891,6 +917,14 @@ function labelForGame(game) {
 
 function sideLabel(side) {
   return side === "black" ? "흑" : side === "white" ? "백" : side;
+}
+
+function turnStatusText(state, countdown) {
+  if (!state?.active) return "방 없음";
+  if (state.phase === "waiting") return "게임 시작 대기";
+  if (state.phase === "ended") return "게임 종료";
+  if (!state.turn) return "대기 중";
+  return `${state.turn.side === "viewers" ? "시청자 턴" : "스트리머 턴"} ${countdown}s`;
 }
 
 function victoryText(game, winner) {

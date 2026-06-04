@@ -7,7 +7,7 @@ import { createOmokState } from "../src/shared/omok.js";
 import { skipGameTurn } from "../src/shared/gameRules.js";
 import { normalizePassword } from "../src/shared/password.js";
 import { createVoteState, recordVote, winningVote } from "../src/shared/votes.js";
-import { roleForNextGameTurn } from "../worker/GameRoom.js";
+import { GameRoom, roleForNextGameTurn } from "../worker/GameRoom.js";
 
 test("baduk captures surrounded stones and rejects occupied points", () => {
   let state = createBadukState();
@@ -166,6 +166,44 @@ test("next game side maps to the correct player role for every game", () => {
   assert.equal(roleForNextGameTurn("chess", chess), "streamer");
   chess = skipGameTurn(chess, "timeout").state;
   assert.equal(roleForNextGameTurn("chess", chess), "viewers");
+});
+
+test("rooms wait for streamer start after create and reconfigure", async () => {
+  const room = new GameRoom({}, { ROOM_ADMIN_PASSWORD: "pass", MAX_VIEWERS: "10" });
+  const createResponse = await room.fetch(
+    new Request("http://local/api/room/create", {
+      method: "POST",
+      body: JSON.stringify({ password: "pass", game: "chess", streamerSeconds: 5, viewerSeconds: 5 }),
+    }),
+  );
+  const created = await createResponse.json();
+  assert.equal(created.ok, true);
+  assert.equal(created.state.phase, "waiting");
+  assert.equal(created.state.turn, null);
+
+  const startResponse = await room.fetch(
+    new Request("http://local/api/room/start", {
+      method: "POST",
+      body: JSON.stringify({ token: created.streamerToken }),
+    }),
+  );
+  const started = await startResponse.json();
+  assert.equal(started.ok, true);
+  assert.equal(started.state.phase, "playing");
+  assert.equal(started.state.turn.side, "streamer");
+
+  const reconfigureResponse = await room.fetch(
+    new Request("http://local/api/room/reconfigure", {
+      method: "POST",
+      body: JSON.stringify({ token: created.streamerToken, game: "janggi", streamerSeconds: 10, viewerSeconds: 10 }),
+    }),
+  );
+  const reconfigured = await reconfigureResponse.json();
+  assert.equal(reconfigured.ok, true);
+  assert.equal(reconfigured.state.phase, "waiting");
+  assert.equal(reconfigured.state.turn, null);
+  assert.equal(reconfigured.state.game, "janggi");
+  room.clearTimers();
 });
 
 test("password normalization lowercases and maps Korean keyboard input", () => {

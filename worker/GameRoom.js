@@ -44,6 +44,12 @@ export class GameRoom {
       return this.reconfigureRoom(request);
     }
 
+    if (url.pathname === "/api/room/start" && request.method === "POST") {
+      const limit = this.checkRateLimit(`admin:${ip}`, this.config.adminActionLimitPerMinute);
+      if (!limit.ok) return rateLimitedResponse(limit.retryAfterMs);
+      return this.startRoom(request);
+    }
+
     if (url.pathname === "/ws") {
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("Expected WebSocket", { status: 426 });
@@ -88,8 +94,6 @@ export class GameRoom {
       createdAt: Date.now(),
       moveLog: [],
     };
-    this.startTurn("streamer");
-
     return Response.json({ ok: true, streamerToken, state: this.publicState() });
   }
 
@@ -125,6 +129,23 @@ export class GameRoom {
     this.room.moveLog = [];
     this.room.createdAt = Date.now();
 
+    this.broadcast({ type: "room_snapshot", state: this.publicState() });
+    return Response.json({ ok: true, state: this.publicState() });
+  }
+
+  async startRoom(request) {
+    const body = await safeJson(request);
+    if (!body.token || body.token !== this.room.streamerToken) {
+      return Response.json({ ok: false, code: "unauthorized" }, { status: 403 });
+    }
+    if (!this.room.active) {
+      return Response.json({ ok: false, code: "no_room" }, { status: 404 });
+    }
+    if (this.room.turn && !isTerminalGameState(this.room.gameState)) {
+      return Response.json({ ok: false, code: "already_started" }, { status: 409 });
+    }
+
+    this.prepareNewGame();
     this.broadcast({ type: "room_snapshot", state: this.publicState() });
     this.startTurn("streamer");
     return Response.json({ ok: true, state: this.publicState() });
@@ -197,6 +218,11 @@ export class GameRoom {
       return;
     }
 
+    if (message.type === "start_game") {
+      this.handleSocketStartGame(socketId, message);
+      return;
+    }
+
     if (message.type === "harness_start_viewer_turn" && this.config.harnessMode) {
       this.startTurn("viewers", message.turnSeconds);
     }
@@ -230,7 +256,6 @@ export class GameRoom {
             viewerSeconds: 30,
             gameState: createOmokState(),
           };
-          this.startTurn("streamer");
         }
       } else {
         this.send(socketId, { type: "error", code: "unauthorized", message: "Streamer token is invalid." });
@@ -313,7 +338,26 @@ export class GameRoom {
     this.room.votes = createVoteState();
     this.room.moveLog = [];
     this.broadcast({ type: "room_snapshot", state: this.publicState() });
+  }
+
+  handleSocketStartGame(socketId, message) {
+    const client = this.sockets.get(socketId);
+    if (client?.role !== "streamer" || message.token !== this.room.streamerToken) return;
+    if (this.room.turn && !isTerminalGameState(this.room.gameState)) return;
+    this.prepareNewGame();
+    this.broadcast({ type: "room_snapshot", state: this.publicState() });
     this.startTurn("streamer");
+  }
+
+  prepareNewGame() {
+    clearTimeout(this.turnTimer);
+    clearTimeout(this.voteBroadcastTimer);
+    this.turnTimer = null;
+    this.voteBroadcastTimer = null;
+    this.room.gameState = createInitialGameState(this.room.game);
+    this.room.turn = null;
+    this.room.votes = createVoteState();
+    this.room.moveLog = [];
   }
 
   startTurn(side, overrideSeconds) {
@@ -443,6 +487,7 @@ export class GameRoom {
     this.ensureCurrentGameState();
     return {
       active: this.room.active,
+      phase: roomPhase(this.room),
       game: this.room.game,
       streamerSeconds: this.room.streamerSeconds,
       viewerSeconds: this.room.viewerSeconds,
@@ -542,7 +587,6 @@ export class GameRoom {
     this.room.turn = null;
     this.room.votes = createVoteState();
     this.room.moveLog = [];
-    this.startTurn("streamer");
   }
 }
 
@@ -575,6 +619,13 @@ export function roleForNextGameTurn(game, gameState) {
 
 export function isTerminalGameState(gameState) {
   return Boolean(gameState?.winner || gameState?.isDraw);
+}
+
+function roomPhase(room) {
+  if (!room.active) return "empty";
+  if (isTerminalGameState(room.gameState)) return "ended";
+  if (room.turn) return "playing";
+  return "waiting";
 }
 
 function clampSeconds(value) {
