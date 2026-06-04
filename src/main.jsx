@@ -298,12 +298,11 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
     setSelected(null);
   }, [game, state?.moveNumber, turn?.id]);
 
-  const handleCell = (row, col) => {
-    if (game === "omok" || game === "baduk") {
-      onMove({ game, row, col });
-      return;
-    }
+  if (game === "omok" || game === "baduk") {
+    return <IntersectionBoard game={game} state={state} voteSummary={voteSummary} role={role} turn={turn} onMove={onMove} />;
+  }
 
+  const handleCell = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
     if (!selected && piece?.side === currentSide) {
@@ -320,7 +319,7 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
 
   return (
     <div className={`board-wrap ${game}`}>
-      <div className={`board ${game}`} style={{ "--size": size.cols }}>
+      <div className={`board ${game}`} style={{ "--cols": size.cols, "--rows": size.rows }}>
         {Array.from({ length: size.rows }).map((_, row) =>
           Array.from({ length: size.cols }).map((_, col) => {
             const piece = state?.board?.[row]?.[col] || null;
@@ -342,12 +341,68 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
         )}
         {game === "janggi" && <div className="palace top" />}
         {game === "janggi" && <div className="palace bottom" />}
-        {(game === "baduk" || game === "omok") &&
-          starPoints(size.rows, size.cols).map((point) => (
-            <i key={point.join("-")} className="star" style={{ gridRow: point[0] + 1, gridColumn: point[1] + 1 }} />
-          ))}
       </div>
       <div className="turn-help">{role === "streamer" ? "마우스로 착수" : game === "omok" || game === "baduk" ? "마우스로 투표" : "말을 고른 뒤 목적지를 투표"}</div>
+    </div>
+  );
+}
+
+function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
+  const size = boardSize(game);
+  const pad = game === "baduk" ? 5 : 6;
+  const interval = (100 - pad * 2) / (size.cols - 1);
+  const pointSize = interval * (game === "baduk" ? 0.86 : 0.9);
+  const overlays = useMemo(() => {
+    const map = new Map();
+    for (const item of voteSummary.top || []) {
+      map.set(`${item.move.row}:${item.move.col}`, item);
+    }
+    return map;
+  }, [voteSummary]);
+
+  return (
+    <div className={`board-wrap ${game}`}>
+      <div className={`board intersection-board ${game}`}>
+        <svg className="board-lines" viewBox="0 0 100 100" aria-hidden="true">
+          {Array.from({ length: size.cols }).map((_, col) => {
+            const x = pad + col * interval;
+            return <line key={`v-${col}`} x1={x} y1={pad} x2={x} y2={100 - pad} />;
+          })}
+          {Array.from({ length: size.rows }).map((_, row) => {
+            const y = pad + row * interval;
+            return <line key={`h-${row}`} x1={pad} y1={y} x2={100 - pad} y2={y} />;
+          })}
+          {starPoints(size.rows, size.cols).map(([row, col]) => (
+            <circle key={`${row}-${col}`} className="hoshi" cx={pad + col * interval} cy={pad + row * interval} r={game === "baduk" ? 0.55 : 0.48} />
+          ))}
+        </svg>
+
+        {Array.from({ length: size.rows }).map((_, row) =>
+          Array.from({ length: size.cols }).map((_, col) => {
+            const piece = state?.board?.[row]?.[col] || null;
+            const vote = overlays.get(`${row}:${col}`);
+            const last = lastMoveAt(state?.lastMove, row, col);
+            return (
+              <button
+                key={`${row}-${col}`}
+                className={`point-cell ${last ? "last" : ""}`}
+                style={{
+                  left: `${pad + col * interval}%`,
+                  top: `${pad + row * interval}%`,
+                  width: `${pointSize}%`,
+                  height: `${pointSize}%`,
+                }}
+                onClick={() => onMove({ game, row, col })}
+                title={`${row + 1}, ${col + 1}`}
+              >
+                {piece && <Piece game={game} piece={piece} />}
+                {vote && turn?.side === "viewers" && <span className="vote-badge">{vote.percent}%</span>}
+              </button>
+            );
+          }),
+        )}
+      </div>
+      <div className="turn-help">{role === "streamer" ? "마우스로 착수" : "마우스로 투표"}</div>
     </div>
   );
 }
