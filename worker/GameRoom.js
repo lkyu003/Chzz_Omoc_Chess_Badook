@@ -136,7 +136,6 @@ export class GameRoom {
     server.addEventListener("close", () => this.disconnect(socketId));
     server.addEventListener("error", () => this.disconnect(socketId));
 
-    this.send(socketId, { type: "room_snapshot", state: this.publicState() });
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -217,6 +216,10 @@ export class GameRoom {
         this.send(socketId, { type: "error", code: "unauthorized", message: "Streamer token is invalid." });
       }
     } else {
+      if (!this.room.active) {
+        this.send(socketId, { type: "error", code: "no_room", message: "No active room exists." });
+        return;
+      }
       if (this.room.viewers.size >= this.config.maxViewers) {
         this.send(socketId, { type: "error", code: "room_full", message: "Viewer cap reached." });
         return;

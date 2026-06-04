@@ -13,6 +13,11 @@ const games = [
 
 const timeOptions = [5, 10, 15, 20, 25, 30];
 
+function readableError(message) {
+  if (message.code === "no_room") return "현재 열린 방이 없습니다.";
+  return message.message || message.code || "요청을 처리하지 못했습니다.";
+}
+
 function App() {
   const [mode, setMode] = useState("join");
   const [role, setRole] = useState(null);
@@ -31,6 +36,7 @@ function App() {
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const socketRef = useRef(null);
   const audioRef = useRef(null);
+  const pendingRoleRef = useRef(null);
 
   useEffect(() => {
     audioRef.current = createMoveAudio();
@@ -43,6 +49,7 @@ function App() {
   const connect = useCallback(
     (nextRole, nextToken = token) => {
       socketRef.current?.close();
+      pendingRoleRef.current = nextRole;
       setSocketStatus("connecting");
       setError("");
       const protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -60,7 +67,13 @@ function App() {
         const message = JSON.parse(event.data);
         if (message.state?.serverNow) setServerOffsetMs(message.state.serverNow - Date.now());
         if (message.serverNow) setServerOffsetMs(message.serverNow - Date.now());
-        if (message.type === "room_snapshot") setState(message.state);
+        if (message.type === "room_snapshot") {
+          setState(message.state);
+          if (pendingRoleRef.current && message.state?.active) {
+            setRole(pendingRoleRef.current);
+            pendingRoleRef.current = null;
+          }
+        }
         if (message.type === "turn_started") {
           setState((previous) =>
             previous ? { ...previous, turn: { id: message.turnId, side: message.side, endsAt: message.endsAt, serverNow: message.serverNow } } : previous,
@@ -76,7 +89,15 @@ function App() {
         if (message.type === "viewer_count") {
           setState((previous) => (previous ? { ...previous, viewerCount: message.count } : previous));
         }
-        if (message.type === "error") setError(message.message || message.code);
+        if (message.type === "error") {
+          setError(readableError(message));
+          if (message.code === "no_room") {
+            pendingRoleRef.current = null;
+            setRole(null);
+            setState(null);
+            socket.close();
+          }
+        }
       });
     },
     [muted, nickname, token],
@@ -104,9 +125,8 @@ function App() {
   };
 
   const joinRoom = (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     audioRef.current?.unlock();
-    setRole("viewer");
     connect("viewer", "");
   };
 
@@ -212,7 +232,16 @@ function EntryScreen(props) {
           <button className={props.mode === "create" ? "active" : ""} onClick={() => props.setMode("create")}>
             방 만들기
           </button>
-          <button className={props.mode === "join" ? "active" : ""} onClick={() => props.setMode("join")}>
+          <button
+            className={props.mode === "join" ? "active" : ""}
+            onClick={(event) => {
+              if (props.mode === "join") {
+                props.joinRoom(event);
+              } else {
+                props.setMode("join");
+              }
+            }}
+          >
             참여하기
           </button>
         </div>
@@ -249,14 +278,11 @@ function EntryScreen(props) {
             </button>
           </form>
         ) : (
-          <form onSubmit={props.joinRoom} className="entry-form">
+          <form onSubmit={props.joinRoom} className="entry-form join-form">
             <label>
               닉네임
               <input value={props.nickname} onChange={(event) => props.setNickname(event.target.value)} placeholder="선택 사항" />
             </label>
-            <button className="primary" type="submit">
-              입장
-            </button>
           </form>
         )}
         {props.error && <p className="error-line">{props.error}</p>}
