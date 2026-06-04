@@ -16,13 +16,11 @@ export function applyChessMove(state, move) {
 
   try {
     const chess = new Chess(state.fen);
-    const result = chess.move({
-      from: squareFromCoords(move.from.row, move.from.col),
-      to: squareFromCoords(move.to.row, move.to.col),
-      promotion: move.promotion || "q",
-    });
-    if (!result) return { ok: false, state, reason: "illegal_move" };
-    return { ok: true, state: fromChess(chess, move, (state.moveNumber || 0) + 1), move: result };
+    const internalMove = findPseudoLegalMove(chess, move);
+    if (!internalMove) return { ok: false, state, reason: "illegal_move" };
+
+    chess._makeMove(internalMove);
+    return { ok: true, state: fromChess(chess, move, (state.moveNumber || 0) + 1), move: internalMove };
   } catch {
     return { ok: false, state, reason: "illegal_move" };
   }
@@ -78,8 +76,18 @@ function fromChess(chess, lastMove, moveNumber = 0) {
   };
 }
 
-function squareFromCoords(row, col) {
-  return `${String.fromCharCode(97 + col)}${8 - row}`;
+function findPseudoLegalMove(chess, move) {
+  const from = ox88FromCoords(move.from.row, move.from.col);
+  const to = ox88FromCoords(move.to.row, move.to.col);
+  const promotion = move.promotion || "q";
+  return chess._moves({ legal: false }).find((candidate) => {
+    if (candidate.from !== from || candidate.to !== to) return false;
+    return !candidate.promotion || candidate.promotion === promotion;
+  });
+}
+
+function ox88FromCoords(row, col) {
+  return row * 16 + col;
 }
 
 function pieceLabel(piece) {

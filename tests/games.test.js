@@ -54,6 +54,21 @@ test("chess move numbers keep increasing after FEN reloads", () => {
   });
 });
 
+test("chess allows non-check-resolving moves while in check", () => {
+  const state = {
+    ...createChessState(),
+    fen: "4k3/8/8/8/8/8/4r3/4K2R w K - 0 1",
+    nextSide: "white",
+  };
+  const move = { game: "chess", from: { row: 7, col: 7 }, to: { row: 5, col: 7 } };
+  assert.equal(isLegalChessMove(state, move), true);
+
+  const result = applyChessMove(state, move);
+  assert.equal(result.ok, true);
+  assert.equal(result.state.board[5][7].type, "r");
+  assert.equal(result.state.nextSide, "black");
+});
+
 test("janggi validates simple soldier and chariot moves", () => {
   let state = createJanggiState();
   assert.equal(state.setupVersion, 3);
