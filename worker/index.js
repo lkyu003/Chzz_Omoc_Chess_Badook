@@ -20,6 +20,10 @@ export default {
       return room.fetch(request);
     }
 
+    if (url.pathname === "/api/room/reconfigure" && request.method === "POST") {
+      return room.fetch(request);
+    }
+
     if (url.pathname === "/ws") {
       return room.fetch(request);
     }

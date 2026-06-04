@@ -26,6 +26,7 @@ function App() {
   const [voteSummary, setVoteSummary] = useState({ totalVotes: 0, top: [] });
   const [error, setError] = useState("");
   const [muted, setMuted] = useState(localStorage.getItem("muted") === "true");
+  const [setupOpen, setSetupOpen] = useState(false);
   const socketRef = useRef(null);
   const audioRef = useRef(null);
 
@@ -114,6 +115,29 @@ function App() {
     });
   };
 
+  const reconfigureRoom = async ({ game: nextGame, streamerSeconds: nextStreamerSeconds, viewerSeconds: nextViewerSeconds }) => {
+    if (!token) return;
+    setError("");
+    const response = await fetch("/api/room/reconfigure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token,
+        game: nextGame,
+        streamerSeconds: nextStreamerSeconds,
+        viewerSeconds: nextViewerSeconds,
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.ok) {
+      setError(payload.code || "설정 변경 실패");
+      return;
+    }
+    setState(payload.state);
+    setVoteSummary({ totalVotes: 0, top: [] });
+    setSetupOpen(false);
+  };
+
   const sendMove = (move) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN || !state?.active) return;
@@ -160,6 +184,9 @@ function App() {
       setMuted={setMuted}
       onMove={sendMove}
       resetRoom={resetRoom}
+      reconfigureRoom={reconfigureRoom}
+      setupOpen={setupOpen}
+      setSetupOpen={setSetupOpen}
     />
   );
 }
@@ -239,7 +266,7 @@ function TimeSelect({ label, value, setValue }) {
   );
 }
 
-function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom }) {
+function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setMuted, onMove, resetRoom, reconfigureRoom, setupOpen, setSetupOpen }) {
   const countdown = useCountdown(state?.turn);
   const game = state?.game || "omok";
 
@@ -260,6 +287,11 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
             {muted ? "음소거" : "소리"}
           </button>
           {role === "streamer" && (
+            <button className="secondary" onClick={() => setSetupOpen(true)}>
+              게임 설정
+            </button>
+          )}
+          {role === "streamer" && (
             <button className="danger" onClick={resetRoom}>
               초기화
             </button>
@@ -268,7 +300,10 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
       </header>
 
       <section className="game-layout">
-        <Board game={game} state={state?.gameState} voteSummary={voteSummary} role={role} turn={state?.turn} onMove={onMove} />
+        <div className="center-stage">
+          <Board game={game} state={state?.gameState} voteSummary={voteSummary} role={role} turn={state?.turn} onMove={onMove} />
+          <TurnClockBar turn={state?.turn} countdown={countdown} streamerSeconds={state?.streamerSeconds || 30} viewerSeconds={state?.viewerSeconds || 30} />
+        </div>
         <aside className="side-panel">
           <h2>투표 현황</h2>
           <VoteList voteSummary={voteSummary} />
@@ -278,7 +313,81 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           {error && <p className="error-line">{error}</p>}
         </aside>
       </section>
+      {setupOpen && (
+        <RoomSetupModal
+          state={state}
+          onClose={() => setSetupOpen(false)}
+          onSubmit={reconfigureRoom}
+        />
+      )}
     </main>
+  );
+}
+
+function RoomSetupModal({ state, onClose, onSubmit }) {
+  const [nextGame, setNextGame] = useState(state?.game || "omok");
+  const [nextStreamerSeconds, setNextStreamerSeconds] = useState(state?.streamerSeconds || 30);
+  const [nextViewerSeconds, setNextViewerSeconds] = useState(state?.viewerSeconds || 30);
+
+  const submit = (event) => {
+    event.preventDefault();
+    onSubmit({ game: nextGame, streamerSeconds: nextStreamerSeconds, viewerSeconds: nextViewerSeconds });
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <form className="setup-modal" onSubmit={submit}>
+        <div className="modal-title-row">
+          <h2>게임 설정</h2>
+          <button type="button" className="icon-button" onClick={onClose} title="닫기">
+            닫기
+          </button>
+        </div>
+        <fieldset>
+          <legend>게임 종류</legend>
+          <div className="segmented">
+            {games.map((item) => (
+              <button type="button" key={item.id} className={nextGame === item.id ? "active" : ""} onClick={() => setNextGame(item.id)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <TimeSelect label="스트리머 제한시간" value={nextStreamerSeconds} setValue={setNextStreamerSeconds} />
+        <TimeSelect label="시청자 제한시간" value={nextViewerSeconds} setValue={setNextViewerSeconds} />
+        <div className="modal-actions">
+          <button type="button" className="secondary" onClick={onClose}>
+            취소
+          </button>
+          <button className="primary" type="submit">
+            적용하고 새 게임 시작
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function TurnClockBar({ turn, countdown, streamerSeconds, viewerSeconds }) {
+  const streamerActive = turn?.side === "streamer";
+  const viewerActive = turn?.side === "viewers";
+  return (
+    <div className="turn-clock-bar">
+      <div className={`turn-clock streamer ${streamerActive ? "active" : ""}`}>
+        <span className="turn-icon">S</span>
+        <div>
+          <strong>스트리머</strong>
+          <span>{streamerActive ? `${countdown}초` : `${streamerSeconds}초`}</span>
+        </div>
+      </div>
+      <div className={`turn-clock viewers ${viewerActive ? "active" : ""}`}>
+        <div>
+          <strong>시청자</strong>
+          <span>{viewerActive ? `${countdown}초` : `${viewerSeconds}초`}</span>
+        </div>
+        <span className="turn-icon">V</span>
+      </div>
+    </div>
   );
 }
 

@@ -29,6 +29,10 @@ export class GameRoom {
       return this.resetRoom(request);
     }
 
+    if (url.pathname === "/api/room/reconfigure" && request.method === "POST") {
+      return this.reconfigureRoom(request);
+    }
+
     if (url.pathname === "/ws") {
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("Expected WebSocket", { status: 426 });
@@ -86,6 +90,31 @@ export class GameRoom {
     this.room = emptyRoom();
     this.broadcast({ type: "room_snapshot", state: this.publicState() });
     return Response.json({ ok: true });
+  }
+
+  async reconfigureRoom(request) {
+    const body = await safeJson(request);
+    if (!body.token || body.token !== this.room.streamerToken) {
+      return Response.json({ ok: false, code: "unauthorized" }, { status: 403 });
+    }
+
+    const game = isSupportedGame(body.game) ? body.game : this.room.game;
+    const streamerSeconds = clampSeconds(body.streamerSeconds || this.room.streamerSeconds);
+    const viewerSeconds = clampSeconds(body.viewerSeconds || this.room.viewerSeconds);
+
+    this.clearTimers();
+    this.room.game = game;
+    this.room.streamerSeconds = streamerSeconds;
+    this.room.viewerSeconds = viewerSeconds;
+    this.room.gameState = createInitialGameState(game);
+    this.room.turn = null;
+    this.room.votes = createVoteState();
+    this.room.moveLog = [];
+    this.room.createdAt = Date.now();
+
+    this.broadcast({ type: "room_snapshot", state: this.publicState() });
+    this.startTurn("streamer");
+    return Response.json({ ok: true, state: this.publicState() });
   }
 
   handleWebSocket() {
@@ -147,6 +176,11 @@ export class GameRoom {
 
     if (message.type === "reset_room") {
       this.handleSocketReset(socketId, message);
+      return;
+    }
+
+    if (message.type === "reconfigure_room") {
+      this.handleSocketReconfigure(socketId, message);
       return;
     }
 
@@ -239,6 +273,22 @@ export class GameRoom {
     this.clearTimers();
     this.room = emptyRoom();
     this.broadcast({ type: "room_snapshot", state: this.publicState() });
+  }
+
+  handleSocketReconfigure(socketId, message) {
+    const client = this.sockets.get(socketId);
+    if (client?.role !== "streamer" || message.token !== this.room.streamerToken) return;
+    const game = isSupportedGame(message.game) ? message.game : this.room.game;
+    this.clearTimers();
+    this.room.game = game;
+    this.room.streamerSeconds = clampSeconds(message.streamerSeconds || this.room.streamerSeconds);
+    this.room.viewerSeconds = clampSeconds(message.viewerSeconds || this.room.viewerSeconds);
+    this.room.gameState = createInitialGameState(game);
+    this.room.turn = null;
+    this.room.votes = createVoteState();
+    this.room.moveLog = [];
+    this.broadcast({ type: "room_snapshot", state: this.publicState() });
+    this.startTurn("streamer");
   }
 
   startTurn(side, overrideSeconds) {

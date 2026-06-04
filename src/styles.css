@@ -108,6 +108,7 @@ h2 {
 .mode-tabs button,
 .segmented button,
 .primary,
+.secondary,
 .danger,
 .icon-button {
   min-height: 42px;
@@ -122,6 +123,12 @@ h2 {
 .primary {
   border-color: #7db0ff;
   background: #2e6ed2;
+}
+
+.secondary {
+  padding: 0 14px;
+  border-color: #4b5964;
+  background: #26313a;
 }
 
 .entry-form {
@@ -195,8 +202,8 @@ legend {
 }
 
 .icon-button {
-  width: 44px;
-  padding: 0;
+  min-width: 44px;
+  padding: 0 10px;
 }
 
 .danger {
@@ -206,14 +213,26 @@ legend {
 }
 
 .game-layout {
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(320px, 860px) minmax(240px, 1fr);
+  align-items: start;
   gap: 16px;
   margin-top: 16px;
 }
 
-.board-wrap {
-  flex: 1 1 auto;
+.center-stage {
+  grid-column: 2;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
   min-width: 0;
+}
+
+.board-wrap {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
 }
 
 .board {
@@ -464,8 +483,70 @@ legend {
   text-align: center;
 }
 
+.turn-clock-bar {
+  width: min(78vh, 100%);
+  max-width: 860px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.turn-clock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  border: 1px solid #313c45;
+  border-radius: 8px;
+  padding: 12px;
+  color: #9aa6b2;
+  background: #171c20;
+  opacity: 0.68;
+}
+
+.turn-clock.viewers {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.turn-clock.active {
+  opacity: 1;
+  border-color: #7db0ff;
+  color: #eef7ff;
+  background: #162942;
+  box-shadow: 0 0 0 2px rgba(125, 176, 255, 0.16), 0 12px 34px rgba(0, 0, 0, 0.22);
+}
+
+.turn-clock strong,
+.turn-clock span {
+  display: block;
+}
+
+.turn-clock strong {
+  font-size: 15px;
+}
+
+.turn-clock div > span {
+  margin-top: 2px;
+  font-size: clamp(22px, 4vw, 38px);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.turn-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 900;
+  color: #10171d;
+  background: #7db0ff;
+}
+
 .side-panel {
-  flex: 0 0 280px;
+  grid-column: 3;
+  width: 100%;
   border: 1px solid #2f3942;
   border-radius: 8px;
   padding: 16px;
@@ -495,6 +576,43 @@ legend {
   color: #bff3cc;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(7, 10, 13, 0.72);
+}
+
+.setup-modal {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 14px;
+  border: 1px solid #3d4a54;
+  border-radius: 8px;
+  padding: 18px;
+  background: #1b2025;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.modal-title-row,
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-title-row h2 {
+  margin-bottom: 0;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 860px) {
   .brand-row,
   .topbar,
@@ -503,13 +621,22 @@ legend {
     flex-direction: column;
   }
 
+  .game-layout {
+    display: flex;
+  }
+
   .segmented {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .board,
-  .turn-help {
+  .turn-help,
+  .turn-clock-bar {
     width: 100%;
+  }
+
+  .turn-clock-bar {
+    grid-template-columns: 1fr;
   }
 
   .side-panel {
