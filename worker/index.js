@@ -16,6 +16,10 @@ export default {
       return Response.json({ ok: true, room: "single-active-room" });
     }
 
+    if (url.pathname === "/api/rooms" && request.method === "GET") {
+      return room.fetch(request);
+    }
+
     if (url.pathname === "/api/room/create" && request.method === "POST") {
       const session = await readChzzkSession(request, env);
       if (!session) {
@@ -52,7 +56,8 @@ function withChzzkSessionHeaders(request, session) {
   const headers = new Headers(request.headers);
   headers.set("X-CHZZK-Authorized", "true");
   headers.set("X-CHZZK-Channel-Id", session.channelId);
-  headers.set("X-CHZZK-Channel-Name", session.channelName || "");
+  headers.set("X-CHZZK-Channel-Name", encodeURIComponent(session.channelName || ""));
+  headers.set("X-CHZZK-Channel-Image-Url", encodeURIComponent(session.channelImageUrl || ""));
   headers.set("X-CHZZK-Follower-Count", String(session.followerCount || 0));
   return new Request(request, { headers });
 }

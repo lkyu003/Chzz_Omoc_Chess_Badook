@@ -31,6 +31,10 @@ export class GameRoom {
       return this.createRoom(request);
     }
 
+    if (url.pathname === "/api/rooms" && request.method === "GET") {
+      return Response.json({ ok: true, rooms: this.room.active ? [this.roomSummary()] : [] });
+    }
+
     if (url.pathname === "/api/room/reset" && request.method === "POST") {
       const limit = this.checkRateLimit(`admin:${ip}`, this.config.adminActionLimitPerMinute);
       if (!limit.ok) return rateLimitedResponse(limit.retryAfterMs);
@@ -84,6 +88,7 @@ export class GameRoom {
       votes: createVoteState(),
       viewers: new Set(),
       streamerSocketId: null,
+      streamer: streamerFromRequest(request),
       createdAt: Date.now(),
       moveLog: [],
     };
@@ -504,6 +509,7 @@ export class GameRoom {
       streamerSeconds: this.room.streamerSeconds,
       viewerSeconds: this.room.viewerSeconds,
       gameState: this.room.gameState,
+      streamer: this.room.streamer,
       turn: this.room.turn,
       serverNow: Date.now(),
       viewerCount: this.room.viewers.size,
@@ -513,6 +519,17 @@ export class GameRoom {
         voteBroadcastIntervalMs: this.config.voteBroadcastIntervalMs,
         topVoteCandidates: this.config.topVoteCandidates,
       },
+    };
+  }
+
+  roomSummary() {
+    return {
+      id: "single-active-room",
+      game: this.room.game,
+      phase: roomPhase(this.room),
+      streamer: this.room.streamer,
+      viewerCount: this.room.viewers.size,
+      createdAt: this.room.createdAt,
     };
   }
 
@@ -614,9 +631,27 @@ function emptyRoom() {
     votes: createVoteState(),
     viewers: new Set(),
     streamerSocketId: null,
+    streamer: null,
     createdAt: null,
     moveLog: [],
   };
+}
+
+function streamerFromRequest(request) {
+  return {
+    channelId: request.headers.get("X-CHZZK-Channel-Id") || "",
+    channelName: decodeHeaderValue(request.headers.get("X-CHZZK-Channel-Name")) || "치지직 채널",
+    channelImageUrl: decodeHeaderValue(request.headers.get("X-CHZZK-Channel-Image-Url")) || "",
+  };
+}
+
+function decodeHeaderValue(value) {
+  if (!value) return "";
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function isSupportedGame(game) {

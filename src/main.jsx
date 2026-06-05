@@ -33,6 +33,9 @@ function App() {
   const [token, setToken] = useState("");
   const [socketStatus, setSocketStatus] = useState("idle");
   const [state, setState] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoaded, setRoomsLoaded] = useState(false);
+  const [roomsLoading, setRoomsLoading] = useState(false);
   const [voteSummary, setVoteSummary] = useState({ totalVotes: 0, top: [] });
   const [error, setError] = useState("");
   const [muted, setMuted] = useState(localStorage.getItem("muted") === "true");
@@ -164,6 +167,23 @@ function App() {
     setTimeout(() => setBusyAction((current) => (current === "join" ? "" : current)), 1500);
   };
 
+  const loadRooms = async () => {
+    if (roomsLoading) return;
+    setMode("join");
+    setRoomsLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/rooms");
+      const payload = await response.json();
+      setRooms(payload.rooms || []);
+      setRoomsLoaded(true);
+    } catch {
+      setError("방 목록을 불러오지 못했습니다.");
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
   const resetRoom = async () => {
     if (!token) return;
     await fetch("/api/room/reset", {
@@ -233,6 +253,10 @@ function App() {
         setMode={setMode}
         nickname={nickname}
         setNickname={setNickname}
+        rooms={rooms}
+        roomsLoaded={roomsLoaded}
+        roomsLoading={roomsLoading}
+        loadRooms={loadRooms}
         auth={auth}
         game={game}
         setGame={setGame}
@@ -290,13 +314,14 @@ function EntryScreen(props) {
             disabled={props.busyAction === "join"}
             onClick={(event) => {
               if (props.mode === "join") {
-                props.joinRoom(event);
+                props.loadRooms();
               } else {
                 props.setMode("join");
+                props.loadRooms();
               }
             }}
           >
-            참여하기
+            {props.roomsLoading ? "불러오는 중" : "참여하기"}
           </button>
         </div>
 
@@ -306,9 +331,7 @@ function EntryScreen(props) {
               {props.auth.loading ? (
                 <span>치지직 로그인 확인 중...</span>
               ) : props.auth.authenticated ? (
-                <span>
-                  {props.auth.user?.channelName || "치지직 채널"} · 팔로워 {props.auth.user?.followerCount || 0}명
-                </span>
+                <span>{props.auth.user?.channelName || "치지직 채널"}</span>
               ) : (
                 <button className="secondary" type="button" onClick={() => (location.href = "/api/auth/chzzk/start")}>
                   치지직 로그인
@@ -332,17 +355,41 @@ function EntryScreen(props) {
             </button>
           </form>
         ) : (
-          <form onSubmit={props.joinRoom} className="entry-form join-form">
+          <form onSubmit={(event) => event.preventDefault()} className="entry-form join-form">
             <label>
               닉네임
               <input value={props.nickname} onChange={(event) => props.setNickname(event.target.value)} placeholder="선택 사항" />
             </label>
+            {props.roomsLoaded && (
+              <div className="room-list">
+                {props.rooms.length ? (
+                  props.rooms.map((room) => (
+                    <button className="room-tag" type="button" key={room.id} onClick={props.joinRoom} disabled={props.busyAction === "join"}>
+                      <RoomAvatar streamer={room.streamer} />
+                      <span className="room-tag-text">
+                        <strong>{room.streamer?.channelName || "치지직 채널"}</strong>
+                        <span>{labelForGame(room.game)} · {room.viewerCount || 0}명</span>
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="empty">현재 열린 방이 없습니다.</p>
+                )}
+              </div>
+            )}
           </form>
         )}
         {props.error && <p className="error-line">{props.error}</p>}
       </section>
     </main>
   );
+}
+
+function RoomAvatar({ streamer }) {
+  if (streamer?.channelImageUrl) {
+    return <img className="room-avatar" src={streamer.channelImageUrl} alt="" />;
+  }
+  return <span className="room-avatar fallback">{(streamer?.channelName || "치").slice(0, 1)}</span>;
 }
 
 function TimeSelect({ label, value, setValue }) {

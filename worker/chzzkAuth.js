@@ -25,6 +25,7 @@ export async function handleChzzkAuth(request, env) {
         ? {
             channelId: session.channelId,
             channelName: session.channelName,
+            channelImageUrl: session.channelImageUrl,
             followerCount: session.followerCount,
             minFollowers: minFollowers(env),
           }
@@ -102,6 +103,7 @@ async function finishAuth(request, env) {
         allowed: true,
         channelId: me.channelId,
         channelName: me.channelName || channel.channelName || "",
+        channelImageUrl: channel.channelImageUrl || "",
         followerCount,
         expiresAt: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
       },

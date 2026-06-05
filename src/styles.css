@@ -178,6 +178,74 @@ h2 {
   width: 100%;
 }
 
+.room-list {
+  display: grid;
+  gap: 10px;
+}
+
+.room-tag {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  border: 1px solid rgba(128, 164, 229, 0.74);
+  border-radius: 18px;
+  padding: 9px 12px;
+  color: #496ca9;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(232, 243, 255, 0.9) 48%, rgba(248, 235, 255, 0.92));
+  box-shadow: 0 8px 20px rgba(98, 131, 196, 0.16);
+  text-align: left;
+}
+
+.room-tag:hover {
+  border-color: #88aef6;
+  transform: translateY(-1px);
+}
+
+.room-avatar {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  object-fit: cover;
+  background: #e9f3ff;
+  box-shadow: 0 6px 14px rgba(105, 137, 202, 0.18);
+}
+
+.room-avatar.fallback {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #76b8ff, #e0a7ee);
+  font-weight: 900;
+}
+
+.room-tag-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.room-tag-text strong,
+.room-tag-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-tag-text strong {
+  color: #496ca9;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.room-tag-text span {
+  color: #6f7fa5;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 label {
   display: grid;
   gap: 7px;

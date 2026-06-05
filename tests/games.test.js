@@ -173,7 +173,11 @@ test("rooms wait for streamer start after create and reconfigure", async () => {
   const createResponse = await room.fetch(
     new Request("http://local/api/room/create", {
       method: "POST",
-      headers: { "X-CHZZK-Authorized": "true" },
+      headers: {
+        "X-CHZZK-Authorized": "true",
+        "X-CHZZK-Channel-Name": encodeURIComponent("테스트 스트리머"),
+        "X-CHZZK-Channel-Image-Url": encodeURIComponent("https://example.com/profile.png"),
+      },
       body: JSON.stringify({ game: "chess", streamerSeconds: 5, viewerSeconds: 5 }),
     }),
   );
@@ -181,6 +185,14 @@ test("rooms wait for streamer start after create and reconfigure", async () => {
   assert.equal(created.ok, true);
   assert.equal(created.state.phase, "waiting");
   assert.equal(created.state.turn, null);
+  assert.equal(created.state.streamer.channelName, "테스트 스트리머");
+
+  const roomsResponse = await room.fetch(new Request("http://local/api/rooms"));
+  const rooms = await roomsResponse.json();
+  assert.equal(rooms.ok, true);
+  assert.equal(rooms.rooms.length, 1);
+  assert.equal(rooms.rooms[0].streamer.channelName, "테스트 스트리머");
+  assert.equal(rooms.rooms[0].streamer.channelImageUrl, "https://example.com/profile.png");
 
   const startResponse = await room.fetch(
     new Request("http://local/api/room/start", {
