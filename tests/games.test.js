@@ -169,11 +169,12 @@ test("next game side maps to the correct player role for every game", () => {
 });
 
 test("rooms wait for streamer start after create and reconfigure", async () => {
-  const room = new GameRoom({}, { ROOM_ADMIN_PASSWORD: "pass", MAX_VIEWERS: "10" });
+  const room = new GameRoom({}, { MAX_VIEWERS: "10" });
   const createResponse = await room.fetch(
     new Request("http://local/api/room/create", {
       method: "POST",
-      body: JSON.stringify({ password: "pass", game: "chess", streamerSeconds: 5, viewerSeconds: 5 }),
+      headers: { "X-CHZZK-Authorized": "true" },
+      body: JSON.stringify({ game: "chess", streamerSeconds: 5, viewerSeconds: 5 }),
     }),
   );
   const created = await createResponse.json();
@@ -207,11 +208,12 @@ test("rooms wait for streamer start after create and reconfigure", async () => {
 });
 
 test("rooms limit concurrent viewers from the same IP", async () => {
-  const room = new GameRoom({}, { ROOM_ADMIN_PASSWORD: "pass", MAX_VIEWERS_PER_IP: "2" });
+  const room = new GameRoom({}, { MAX_VIEWERS_PER_IP: "2" });
   const createResponse = await room.fetch(
     new Request("http://local/api/room/create", {
       method: "POST",
-      body: JSON.stringify({ password: "pass", game: "omok" }),
+      headers: { "X-CHZZK-Authorized": "true" },
+      body: JSON.stringify({ game: "omok" }),
     }),
   );
   const created = await createResponse.json();

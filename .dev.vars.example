@@ -1,4 +1,7 @@
-ROOM_ADMIN_PASSWORD="dev-password"
+CHZZK_CLIENT_ID="your-chzzk-client-id"
+CHZZK_CLIENT_SECRET="your-chzzk-client-secret"
+CHZZK_SESSION_SECRET="change-this-long-random-secret"
+MIN_CHZZK_FOLLOWERS="500"
 HARNESS_MODE="true"
 MAX_VIEWERS="250"
 VOTE_BROADCAST_INTERVAL_MS="5000"

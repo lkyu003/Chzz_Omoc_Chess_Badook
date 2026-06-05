@@ -27,8 +27,8 @@ npm run wrangler:dev
 
 Run these in automated tests where practical:
 
-- Wrong password cannot create a room.
-- Correct password creates a room.
+- Unauthenticated users cannot create a room.
+- A CHZZK-authorized streamer session can create a room.
 - Viewers join without password.
 - The room rejects viewers above the configured cap.
 - Streamer legal move is committed.
@@ -100,9 +100,10 @@ Before deployment:
 
 - `wrangler.toml` has a Durable Object binding.
 - Durable Object migrations are configured.
-- `ROOM_ADMIN_PASSWORD` is configured as a secret.
+- CHZZK OAuth credentials and `CHZZK_SESSION_SECRET` are configured as secrets.
+- `MIN_CHZZK_FOLLOWERS` is configured for the room creation follower threshold.
 - The frontend uses the deployed Worker endpoint or same-origin routing.
-- No admin password is bundled in frontend assets.
+- No CHZZK access token, refresh token, client secret, or room admin credential is bundled in frontend assets.
 - Local `.dev.vars` or equivalent secrets file is not committed.
 
 After deployment:

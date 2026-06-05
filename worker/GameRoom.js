@@ -1,7 +1,6 @@
 import { createInitialGameState, applyGameMove, isLegalGameMove, skipGameTurn } from "../src/shared/gameRules.js";
 import { JANGGI_SETUP_VERSION } from "../src/shared/janggi.js";
 import { createOmokState } from "../src/shared/omok.js";
-import { normalizePassword } from "../src/shared/password.js";
 import { clearVote, createVoteState, recordVote, summarizeVotes, winningVote } from "../src/shared/votes.js";
 import { roomConfig } from "./config.js";
 
@@ -64,14 +63,8 @@ export class GameRoom {
 
   async createRoom(request) {
     const body = await safeJson(request);
-    const password = normalizePassword(body.password || "");
-
-    if (!this.env.ROOM_ADMIN_PASSWORD) {
-      return Response.json({ ok: false, code: "missing_admin_secret" }, { status: 500 });
-    }
-
-    if (password !== normalizePassword(this.env.ROOM_ADMIN_PASSWORD)) {
-      return Response.json({ ok: false, code: "wrong_password" }, { status: 401 });
+    if (!this.isAuthorizedRoomCreator(request, body)) {
+      return Response.json({ ok: false, code: "chzzk_login_required" }, { status: 401 });
     }
 
     const game = isSupportedGame(body.game) ? body.game : "omok";
@@ -95,6 +88,11 @@ export class GameRoom {
       moveLog: [],
     };
     return Response.json({ ok: true, streamerToken, state: this.publicState() });
+  }
+
+  isAuthorizedRoomCreator(request, body) {
+    if (request.headers.get("X-CHZZK-Authorized") === "true") return true;
+    return this.config.harnessMode && body.harness === true;
   }
 
   async resetRoom(request) {

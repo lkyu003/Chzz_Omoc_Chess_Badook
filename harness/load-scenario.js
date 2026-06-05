@@ -16,7 +16,6 @@ const args = parseArgs(process.argv.slice(2));
 const url = args.url || "ws://localhost:8787/ws";
 const httpUrl = args.httpUrl || url.replace(/^ws/, "http").replace(/\/ws$/, "");
 const viewers = Number(args.viewers || 200);
-const password = args.password || "dev-password";
 const voteDelayMs = Number(args.voteDelayMs || 250);
 const revoteDelayMs = Number(args.revoteDelayMs || 5000);
 const timeoutMs = Number(args.timeoutMs || 45000);
@@ -108,7 +107,7 @@ async function createRoom() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      password,
+      harness: true,
       game: "omok",
       streamerSeconds: 30,
       viewerSeconds: 30,

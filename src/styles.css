@@ -161,6 +161,23 @@ h2 {
   margin-top: 18px;
 }
 
+.auth-box {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid rgba(141, 170, 229, 0.72);
+  border-radius: 14px;
+  padding: 8px 12px;
+  color: #5d6f9b;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 5px rgba(97, 124, 178, 0.12);
+  font-weight: 850;
+}
+
+.auth-box .secondary {
+  width: 100%;
+}
+
 label {
   display: grid;
   gap: 7px;

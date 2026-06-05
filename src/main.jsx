@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createRoot } from "react-dom/client";
 import { isLegalChessMove } from "./shared/chessGame.js";
 import { isLegalJanggiMove } from "./shared/janggi.js";
-import { normalizePassword } from "./shared/password.js";
 import { createMoveAudio } from "./sound/moveAudio.js";
 import "./styles.css";
 
@@ -19,6 +18,7 @@ function readableError(message) {
   if (message.code === "no_room") return "현재 열린 방이 없습니다.";
   if (message.code === "rate_limited") return "요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요.";
   if (message.code === "too_many_viewers_per_ip") return "같은 IP에서는 최대 2명까지만 참여할 수 있습니다.";
+  if (message.code === "chzzk_login_required") return "치지직 로그인 후 방을 만들 수 있습니다.";
   return message.message || message.code || "요청을 처리하지 못했습니다.";
 }
 
@@ -26,11 +26,11 @@ function App() {
   const [mode, setMode] = useState("join");
   const [role, setRole] = useState(null);
   const [nickname, setNickname] = useState("");
-  const [password, setPassword] = useState("");
   const [game, setGame] = useState("omok");
   const [streamerSeconds, setStreamerSeconds] = useState(30);
   const [viewerSeconds, setViewerSeconds] = useState(30);
-  const [token, setToken] = useState(localStorage.getItem("streamerToken") || "");
+  const [auth, setAuth] = useState({ loading: true, authenticated: false, user: null });
+  const [token, setToken] = useState("");
   const [socketStatus, setSocketStatus] = useState("idle");
   const [state, setState] = useState(null);
   const [voteSummary, setVoteSummary] = useState({ totalVotes: 0, top: [] });
@@ -51,6 +51,20 @@ function App() {
   useEffect(() => {
     localStorage.setItem("muted", String(muted));
   }, [muted]);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((response) => response.json())
+      .then((payload) => setAuth({ loading: false, authenticated: Boolean(payload.authenticated), user: payload.user || null }))
+      .catch(() => setAuth({ loading: false, authenticated: false, user: null }));
+
+    const params = new URLSearchParams(location.search);
+    const authError = params.get("authError");
+    if (authError) {
+      setError(authError === "not_enough_followers" ? "팔로워 기준을 충족한 치지직 채널만 방을 만들 수 있습니다." : "치지직 로그인에 실패했습니다.");
+      history.replaceState(null, "", location.pathname);
+    }
+  }, []);
 
   const connect = useCallback(
     (nextRole, nextToken = token) => {
@@ -111,6 +125,10 @@ function App() {
 
   const createRoom = async (event) => {
     event.preventDefault();
+    if (!auth.authenticated) {
+      location.href = "/api/auth/chzzk/start";
+      return;
+    }
     const now = Date.now();
     if (busyAction || now - lastActionAtRef.current.create < 3000) return;
     lastActionAtRef.current.create = now;
@@ -120,7 +138,7 @@ function App() {
     const response = await fetch("/api/room/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, game, streamerSeconds, viewerSeconds }),
+      body: JSON.stringify({ game, streamerSeconds, viewerSeconds }),
     });
     const payload = await response.json();
     if (!payload.ok) {
@@ -128,7 +146,6 @@ function App() {
       setError(readableError(payload));
       return;
     }
-    localStorage.setItem("streamerToken", payload.streamerToken);
     setToken(payload.streamerToken);
     setRole("streamer");
     setState(payload.state);
@@ -216,8 +233,7 @@ function App() {
         setMode={setMode}
         nickname={nickname}
         setNickname={setNickname}
-        password={password}
-        setPassword={setPassword}
+        auth={auth}
         game={game}
         setGame={setGame}
         streamerSeconds={streamerSeconds}
@@ -286,19 +302,19 @@ function EntryScreen(props) {
 
         {props.mode === "create" ? (
           <form onSubmit={props.createRoom} className="entry-form">
-            <label>
-              암호
-              <input
-                type="password"
-                value={props.password}
-                onChange={(event) => props.setPassword(normalizePassword(event.target.value))}
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck="false"
-                inputMode="text"
-                required
-              />
-            </label>
+            <div className="auth-box">
+              {props.auth.loading ? (
+                <span>치지직 로그인 확인 중...</span>
+              ) : props.auth.authenticated ? (
+                <span>
+                  {props.auth.user?.channelName || "치지직 채널"} · 팔로워 {props.auth.user?.followerCount || 0}명
+                </span>
+              ) : (
+                <button className="secondary" type="button" onClick={() => (location.href = "/api/auth/chzzk/start")}>
+                  치지직 로그인
+                </button>
+              )}
+            </div>
             <fieldset>
               <legend>게임</legend>
               <div className="segmented">
@@ -311,8 +327,8 @@ function EntryScreen(props) {
             </fieldset>
             <TimeSelect label="스트리머 제한시간" value={props.streamerSeconds} setValue={props.setStreamerSeconds} />
             <TimeSelect label="시청자 제한시간" value={props.viewerSeconds} setValue={props.setViewerSeconds} />
-            <button className="primary" type="submit" disabled={props.busyAction === "create"}>
-              방 생성
+            <button className="primary" type="submit" disabled={props.busyAction === "create" || props.auth.loading}>
+              {props.auth.authenticated ? "방 생성" : "치지직 로그인 후 방 생성"}
             </button>
           </form>
         ) : (
@@ -468,11 +484,6 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
           {role === "streamer" && (
             <button className="primary" onClick={startGame} disabled={!canStartGame}>
               게임 시작
-            </button>
-          )}
-          {role === "streamer" && (
-            <button className="danger" onClick={resetRoom}>
-              초기화
             </button>
           )}
         </div>
