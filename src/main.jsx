@@ -537,6 +537,7 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
       </header>
 
       <section className="game-layout">
+        {game === "baduk" && <BadukRulesPanel score={state?.gameState?.score} />}
         <div className="center-stage">
           <Board game={game} state={state?.gameState} voteSummary={voteSummary} role={role} turn={state?.turn} onMove={onMove} />
           <TurnClockBar game={game} turn={state?.turn} countdown={countdown} streamerSeconds={state?.streamerSeconds || 30} viewerSeconds={state?.viewerSeconds || 30} />
@@ -562,6 +563,27 @@ function GameScreen({ role, state, socketStatus, voteSummary, error, muted, setM
       )}
       {winnerText && dismissedWinner !== winnerText && <VictoryOverlay text={winnerText} onDismiss={() => setDismissedWinner(winnerText)} />}
     </main>
+  );
+}
+
+function BadukRulesPanel({ score }) {
+  return (
+    <aside className="rules-panel">
+      <h2>바둑 종료와 계산</h2>
+      <ul>
+        <li>스트리머가 패스하면 대국이 종료됩니다.</li>
+        <li>판 위에 살아있는 돌 수를 셉니다.</li>
+        <li>한쪽 돌로만 둘러싸인 빈 자리는 그쪽 점수입니다.</li>
+        <li>백은 덤 6.5점을 더합니다.</li>
+        <li>총점이 높은 쪽이 승리합니다.</li>
+      </ul>
+      {score && (
+        <div className="score-box">
+          <span>흑 {score.black}점</span>
+          <span>백 {score.white}점</span>
+        </div>
+      )}
+    </aside>
   );
 }
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyBadukMove, createBadukState, isLegalBadukMove } from "../src/shared/baduk.js";
+import { applyBadukMove, createBadukState, isLegalBadukMove, skipBadukTurn } from "../src/shared/baduk.js";
 import { applyChessMove, createChessState, isLegalChessMove } from "../src/shared/chessGame.js";
 import { applyJanggiMove, createJanggiState, isLegalJanggiMove } from "../src/shared/janggi.js";
 import { createOmokState } from "../src/shared/omok.js";
@@ -26,6 +26,22 @@ test("baduk captures surrounded stones and rejects occupied points", () => {
   assert.equal(state.board[0][0], null);
   assert.equal(state.captures.black, 1);
   assert.equal(isLegalBadukMove(state, { game: "baduk", row: 1, col: 1 }), false);
+});
+
+test("baduk ends and scores area after streamer pass", () => {
+  let state = createBadukState();
+  state.board[0][1] = "black";
+  state.board[1][0] = "black";
+  state.board[1][2] = "black";
+  state.board[2][1] = "black";
+  state.board[18][18] = "white";
+
+  state = skipBadukTurn(state, "pass").state;
+
+  assert.equal(state.score.stones.black, 4);
+  assert.equal(state.score.territory.black, 2);
+  assert.equal(state.score.white, 7.5);
+  assert.equal(state.winner, "white");
 });
 
 test("chess accepts legal moves and rejects illegal moves", () => {
@@ -133,8 +149,7 @@ test("timeout skips advance the game-side turn", () => {
   let baduk = createBadukState();
   baduk = skipGameTurn(baduk, "timeout").state;
   assert.equal(baduk.nextStone, "white");
-  baduk = skipGameTurn(baduk, "timeout").state;
-  assert.equal(baduk.nextStone, "black");
+  assert.equal(Boolean(baduk.winner || baduk.isDraw), true);
 
   let chess = createChessState();
   chess = skipGameTurn(chess, "timeout").state;

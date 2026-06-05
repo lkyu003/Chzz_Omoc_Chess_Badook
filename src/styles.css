@@ -907,8 +907,45 @@ legend {
   backdrop-filter: blur(14px);
 }
 
-.side-panel h2 {
+.rules-panel {
+  grid-column: 1;
+  width: 100%;
+  border: 1px solid rgba(142, 174, 232, 0.66);
+  border-radius: 18px;
+  padding: 16px;
+  color: #4f628f;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 16px 42px rgba(91, 121, 190, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+}
+
+.side-panel h2,
+.rules-panel h2 {
   color: #496ca9;
+  font-weight: 900;
+}
+
+.rules-panel ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.score-box {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.score-box span {
+  border: 1px solid rgba(144, 176, 234, 0.38);
+  border-radius: 12px;
+  padding: 10px;
+  color: #496ca9;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(235, 244, 255, 0.82));
   font-weight: 900;
 }
 
@@ -1061,7 +1098,8 @@ legend {
     grid-template-columns: 1fr;
   }
 
-  .side-panel {
+  .side-panel,
+  .rules-panel {
     width: 100%;
     flex-basis: auto;
   }

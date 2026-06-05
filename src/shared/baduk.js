@@ -1,4 +1,5 @@
 export const BADUK_SIZE = 19;
+const BADUK_KOMI = 6.5;
 
 export function createBadukState() {
   return {
@@ -9,6 +10,9 @@ export function createBadukState() {
     moveNumber: 0,
     lastMove: null,
     winner: null,
+    isDraw: false,
+    komi: BADUK_KOMI,
+    score: null,
     previousBoardHash: null,
     captures: { black: 0, white: 0 },
     passCount: 0,
@@ -30,12 +34,17 @@ export function skipBadukTurn(state, reason = "timeout") {
 }
 
 function simulateBadukMove(state, move) {
+  if (state?.winner || state?.isDraw) {
+    return { ok: false, state, reason: "game_over" };
+  }
+
   if (move?.pass) {
     const next = cloneState(state);
     next.moveNumber += 1;
     next.lastMove = { game: "baduk", pass: true, stone: state.nextStone, moveNumber: next.moveNumber };
     next.nextStone = opponent(state.nextStone);
     next.passCount += 1;
+    if (state.nextStone === "black") finalizeBadukScore(next);
     return { ok: true, state: next, stone: state.nextStone };
   }
 
@@ -93,8 +102,69 @@ function cloneState(state) {
     ...state,
     board: state.board.map((row) => row.map((cell) => cell)),
     captures: { ...state.captures },
+    score: state.score ? { ...state.score, territory: { ...state.score.territory }, stones: { ...state.score.stones } } : null,
     lastMove: state.lastMove ? { ...state.lastMove } : null,
   };
+}
+
+function finalizeBadukScore(state) {
+  const score = calculateAreaScore(state.board, state.komi || BADUK_KOMI);
+  state.score = score;
+  state.isDraw = score.black === score.white;
+  state.winner = state.isDraw ? null : score.black > score.white ? "black" : "white";
+}
+
+function calculateAreaScore(board, komi) {
+  const stones = { black: 0, white: 0 };
+  const territory = { black: 0, white: 0 };
+  const seen = new Set();
+
+  for (let row = 0; row < BADUK_SIZE; row += 1) {
+    for (let col = 0; col < BADUK_SIZE; col += 1) {
+      const cell = board[row][col];
+      if (cell === "black" || cell === "white") {
+        stones[cell] += 1;
+        continue;
+      }
+
+      const key = `${row}:${col}`;
+      if (seen.has(key)) continue;
+      const area = collectEmptyArea(board, row, col, seen);
+      if (area.borderingColors.size === 1) {
+        territory[[...area.borderingColors][0]] += area.points;
+      }
+    }
+  }
+
+  const black = stones.black + territory.black;
+  const white = stones.white + territory.white + komi;
+  return { black, white, komi, stones, territory };
+}
+
+function collectEmptyArea(board, row, col, seen) {
+  const stack = [[row, col]];
+  const borderingColors = new Set();
+  let points = 0;
+
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    const key = `${r}:${c}`;
+    if (seen.has(key)) continue;
+    if (board[r]?.[c] !== null) {
+      if (board[r]?.[c] === "black" || board[r]?.[c] === "white") borderingColors.add(board[r][c]);
+      continue;
+    }
+
+    seen.add(key);
+    points += 1;
+    for (const [nr, nc] of neighbors(r, c)) {
+      const neighbor = board[nr]?.[nc];
+      if (neighbor === null) stack.push([nr, nc]);
+      if (neighbor === "black" || neighbor === "white") borderingColors.add(neighbor);
+    }
+  }
+
+  return { points, borderingColors };
 }
 
 function collectGroup(board, row, col) {
