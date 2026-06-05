@@ -569,6 +569,21 @@ legend {
   pointer-events: none;
 }
 
+.point-cell.voted::after {
+  inset: 0;
+  border-width: 3px;
+}
+
+.janggi-point.voted::after {
+  inset: 7%;
+  border-width: 3px;
+}
+
+.cell.voted::after {
+  inset: 12%;
+  border-width: 3px;
+}
+
 .piece {
   z-index: 1;
 }

@@ -719,20 +719,21 @@ function Board({ game, state, voteSummary, role, turn, onMove }) {
   const handleCell = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
+    const canSelectPiece = canSelectSide(game, role, turn, currentSide);
     if (selected?.row === row && selected?.col === col) {
       setSelected(null);
       return;
     }
-    if (piece?.side === currentSide) {
+    if (piece?.side === currentSide && canSelectPiece) {
       setSelected({ row, col });
       return;
     }
-    if (selected && legalDestinations.has(`${row}:${col}`)) {
+    if (selected && canSelectPiece && legalDestinations.has(`${row}:${col}`)) {
       onMove({ game, from: selected, to: { row, col }, promotion: "q" });
       setSelected(null);
       return;
     }
-    if (piece) setSelected({ row, col });
+    if (piece) setSelected(null);
   };
 
   return (
@@ -775,20 +776,21 @@ function JanggiBoard({ state, role, turn, onMove, selected, setSelected, overlay
   const handlePoint = (row, col) => {
     const piece = state?.board?.[row]?.[col];
     const currentSide = state?.nextSide || "black";
+    const canSelectPiece = canSelectSide("janggi", role, turn, currentSide);
     if (selected?.row === row && selected?.col === col) {
       setSelected(null);
       return;
     }
-    if (piece?.side === currentSide) {
+    if (piece?.side === currentSide && canSelectPiece) {
       setSelected({ row, col });
       return;
     }
-    if (selected && legalDestinations.has(`${row}:${col}`)) {
+    if (selected && canSelectPiece && legalDestinations.has(`${row}:${col}`)) {
       onMove({ game: "janggi", from: selected, to: { row, col } });
       setSelected(null);
       return;
     }
-    if (piece) setSelected({ row, col });
+    if (piece) setSelected(null);
   };
 
   return (
@@ -865,6 +867,17 @@ function moveDestinations(game, state, selected) {
     }
   }
   return legal;
+}
+
+function canSelectSide(game, role, turn, side) {
+  if (!role || !turn || !side) return false;
+  if (turn.side !== roleSideForGame(game, side)) return false;
+  return role === turn.side;
+}
+
+function roleSideForGame(game, side) {
+  if (game === "chess") return side === "white" ? "streamer" : "viewers";
+  return side === "black" ? "streamer" : "viewers";
 }
 
 function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
