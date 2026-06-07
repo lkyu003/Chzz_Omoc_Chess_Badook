@@ -893,13 +893,18 @@ function moveDestinations(game, state, selected) {
 
 function canSelectSide(game, role, turn, side) {
   if (!role || !turn || !side) return false;
-  if (turn.side !== roleSideForGame(game, side)) return false;
-  return role === turn.side;
+  const requiredTurnSide = roleSideForGame(game, side);
+  if (turn.side !== requiredTurnSide) return false;
+  return playerRoleForTurnSide(requiredTurnSide) === role;
 }
 
 function roleSideForGame(game, side) {
   if (game === "chess") return side === "white" ? "streamer" : "viewers";
   return side === "black" ? "streamer" : "viewers";
+}
+
+function playerRoleForTurnSide(turnSide) {
+  return turnSide === "viewers" ? "viewer" : "streamer";
 }
 
 function IntersectionBoard({ game, state, voteSummary, role, turn, onMove }) {
