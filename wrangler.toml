@@ -1,4 +1,4 @@
-name = "streamer-board-vote-room"
+name = "chzzminigame"
 main = "worker/index.js"
 compatibility_date = "2026-06-03"
 
